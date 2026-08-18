@@ -1,5 +1,8 @@
 import 'react-native-url-polyfill/auto';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -22,8 +25,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
  */
 const CHUNK_SIZE = 1800; // stay under the 2048 byte limit with margin
 
-const ExpoSecureStoreAdapter = {
-  getItem: async (key: string): Promise<string | null> => {
+class LargeSecureStore {
+  async getItem(key: string): Promise<string | null> {
     const chunkCountRaw = await SecureStore.getItemAsync(`${key}_chunks`);
     if (!chunkCountRaw) {
       // Fall back to a plain single-key read for values written before
@@ -43,8 +46,9 @@ const ExpoSecureStoreAdapter = {
       parts.push(part);
     }
     return parts.join('');
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
     if (value.length <= CHUNK_SIZE) {
       await SecureStore.setItemAsync(key, value);
       await SecureStore.deleteItemAsync(`${key}_chunks`).catch(() => {});
@@ -58,8 +62,9 @@ const ExpoSecureStoreAdapter = {
     await SecureStore.setItemAsync(`${key}_chunks`, String(chunkCount));
     // Also clear a stale unchunked value from a previous session shape.
     await SecureStore.deleteItemAsync(key).catch(() => {});
-  },
-  removeItem: async (key: string): Promise<void> => {
+  }
+
+  async removeItem(key: string): Promise<void> {
     const chunkCountRaw = await SecureStore.getItemAsync(`${key}_chunks`);
     if (chunkCountRaw) {
       const chunkCount = parseInt(chunkCountRaw, 10);
@@ -69,8 +74,33 @@ const ExpoSecureStoreAdapter = {
       await SecureStore.deleteItemAsync(`${key}_chunks`).catch(() => {});
     }
     await SecureStore.deleteItemAsync(key).catch(() => {});
+  }
+}
+
+// expo-secure-store's web binding is a stub (no getValueWithKeyAsync etc.) —
+// calling it in a browser throws synchronously. Route web to localStorage,
+// same storage the Next.js web app already relies on.
+const webStorage = {
+  getItem: async (key: string): Promise<string | null> =>
+    typeof window === 'undefined' ? null : window.localStorage.getItem(key),
+  setItem: async (key: string, value: string): Promise<void> => {
+    if (typeof window !== 'undefined') window.localStorage.setItem(key, value);
+  },
+  removeItem: async (key: string): Promise<void> => {
+    if (typeof window !== 'undefined') window.localStorage.removeItem(key);
   },
 };
+
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+// Expo Go's SecureStore binding is incomplete — fall back to AsyncStorage
+// (unencrypted, fine for dev testing). Standalone/dev-client builds get the
+// full chunked, Keychain/Keystore-backed store.
+const storage = Platform.OS === 'web'
+  ? webStorage
+  : isExpoGo
+    ? AsyncStorage
+    : new LargeSecureStore();
 
 // Singleton guard — mirrors lib/supabase.ts on the web app. Metro's fast
 // refresh / module re-evaluation during development can otherwise create
@@ -85,7 +115,7 @@ declare global {
 function createSupabaseClient(): SupabaseClient {
   return createClient(supabaseUrl as string, supabaseAnonKey as string, {
     auth: {
-      storage: ExpoSecureStoreAdapter,
+      storage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false, // no browser URL to parse on native
