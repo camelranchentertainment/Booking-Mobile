@@ -1,56 +1,61 @@
-# Welcome to your Expo app 👋
+# Camel Ranch Booking — iPhone & Android app
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The companion app for [camelranchbooking.com](https://camelranchbooking.com). Built with Expo (SDK 57) and Expo Router, talking to the same Supabase project as the web app. Row-level security in Supabase decides what each signed-in person can see; the app never filters by act on trust alone.
 
-## Get started
+## What's in the app
 
-1. Install dependencies
+| Tab | What it shows | Who can edit |
+| --- | --- | --- |
+| **Shows** | Every upcoming show, soonest first, with status | Band admins edit from the day sheet |
+| **Calendar** | Month grid with a colored bar per show; tap a day to see its shows | Band admins edit from the day sheet |
+| **Day Sheet** | The next confirmed show: run of show, venue contact (tap to call), directions | Band admins ("Edit show details") |
+| **Band** | Active roster from the band's Members page, tap to call; account and sign out | No one (manage on the website) |
 
-   ```bash
-   npm install
+## Look and feel
+
+All colors, type and spacing come from `lib/theme.ts`. The 70s pieces (groovy stacked-shadow titles, stripes, buttons, status pills, loading/error/empty states) live in `components/retro.tsx`. Fonts are Shrikhand (titles), Bebas Neue (labels) and Inter (body), loaded before the splash screen hides.
+
+## Run it locally
+
+1. `npm ci`
+2. Create `.env` (never commit it):
    ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
+   EXPO_PUBLIC_SUPABASE_URL=https://ffnhrwfkiryohocscthu.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=<publishable key from Supabase → Project Settings → API>
    ```
+3. `npx expo start`
 
-In the output, you'll find options to open the app in a
+Before every commit: `npx tsc --noEmit` and `npx expo lint` must both pass with no errors.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Store identity (permanent — do not change after the first upload)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| | Value |
+| --- | --- |
+| iOS bundle ID | `com.camelranchbooking.app` |
+| Android package | `com.camelranchbooking.app` |
+| Home-screen name | Camel Ranch |
+| Store listing name | Camel Ranch Booking (set in App Store Connect / Play Console) |
 
-## Get a fresh project
+## Building for the stores (EAS)
 
-When you're ready, run:
+Builds run in Expo's cloud, so no Mac is needed. One-time setup, run from this folder:
 
 ```bash
-npm run reset-project
+npm install -g eas-cli
+eas login                      # Expo account
+eas init                       # links this project; adds "owner" + "extra.eas.projectId" to app.json — commit that
+eas env:set --name EXPO_PUBLIC_SUPABASE_URL --value https://ffnhrwfkiryohocscthu.supabase.co --environment production --visibility plaintext
+eas env:set --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <publishable key> --environment production --visibility plaintext
+# repeat both for --environment preview
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then:
 
-### Other setup steps
+```bash
+eas build --platform ios --profile production       # signs in to Apple and creates certificates for you
+eas build --platform android --profile production
+eas submit --platform ios --latest                  # uploads to App Store Connect / TestFlight
+eas submit --platform android --latest              # uploads to Google Play (needs a Play service-account key)
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+`preview` builds are internal test builds (an installable `.apk` on Android). Build numbers auto-increment on the EAS side (`appVersionSource: remote`).

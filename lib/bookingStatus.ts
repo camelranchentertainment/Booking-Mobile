@@ -1,3 +1,5 @@
+import { colors } from './theme';
+
 /** All values of the Postgres `booking_status` enum, in their natural pipeline order. */
 export const BOOKING_STATUSES = [
   'pitch',
@@ -26,15 +28,15 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
 };
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
-  pitch: '#6B7A99',
-  followup: '#D6A24C',
-  negotiation: '#D6A24C',
-  hold: '#D6A24C',
-  contract: '#6B8FB5',
-  confirmed: '#4E9F5C',
-  advancing: '#4E9F5C',
-  completed: '#5A6685',
-  cancelled: '#E85A5A',
+  pitch: colors.statusPitch,
+  followup: colors.statusPitch,
+  negotiation: colors.statusNegotiating,
+  hold: colors.statusHold,
+  contract: colors.statusContract,
+  confirmed: colors.statusConfirmed,
+  advancing: colors.statusConfirmed,
+  completed: colors.statusDone,
+  cancelled: colors.statusCancelled,
 };
 
 export function bookingStatusLabel(status: string): string {
@@ -42,5 +44,5 @@ export function bookingStatusLabel(status: string): string {
 }
 
 export function bookingStatusColor(status: string): string {
-  return STATUS_COLORS[status as BookingStatus] ?? '#6B7A99';
+  return STATUS_COLORS[status as BookingStatus] ?? colors.statusDone;
 }
