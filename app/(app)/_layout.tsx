@@ -43,11 +43,13 @@ export default function AppLayout() {
         name="calendar"
         options={{ title: 'Calendar', tabBarIcon: tabIcon('calendar-outline', 'calendar') }}
       />
+      <Tabs.Screen name="pay" options={{ title: 'Pay', tabBarIcon: tabIcon('cash-outline', 'cash') }} />
       <Tabs.Screen
         name="daysheet"
         options={{ title: 'Day Sheet', tabBarIcon: tabIcon('time-outline', 'time') }}
       />
-      <Tabs.Screen name="band" options={{ title: 'Band', tabBarIcon: tabIcon('people-outline', 'people') }} />
+      {/* Band roster + account: opened from the header button, not a tab. */}
+      <Tabs.Screen name="band" options={{ href: null, title: 'Band' }} />
     </Tabs>
   );
 }

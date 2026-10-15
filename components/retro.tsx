@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 
 import { bookingStatusColor, bookingStatusLabel } from '../lib/bookingStatus';
+import type { Rsvp } from '../lib/memberShows';
 import { colors, fonts, radius, retroStripe, space, touchTarget, type } from '../lib/theme';
 
 type ShadowSet = readonly [string, string, string];
@@ -132,30 +133,50 @@ export function StatusPill({ status }: { status: string }) {
   );
 }
 
+const RSVP_STYLE: Record<Rsvp, { label: string; color: string }> = {
+  confirmed: { label: "You're in", color: colors.statusConfirmed },
+  pending: { label: 'Answer needed', color: colors.mustard },
+  declined: { label: "Can't make it", color: colors.statusCancelled },
+};
+
+/** A member's own answer for a show. */
+export function RsvpPill({ rsvp }: { rsvp: Rsvp }) {
+  const { label, color } = RSVP_STYLE[rsvp];
+  return (
+    <View style={[styles.pill, { backgroundColor: color }]}>
+      <Text style={styles.pillText}>{label}</Text>
+    </View>
+  );
+}
+
 interface ButtonProps {
   label: string;
   onPress: () => void;
   variant?: 'primary' | 'outline';
+  /** Shows the button as the chosen answer (green fill, not dimmed) and makes it inert. */
+  selected?: boolean;
   disabled?: boolean;
   busy?: boolean;
   accessibilityHint?: string;
 }
 
 /** Primary (orange fill) or outline button with a 48dp target and pressed/disabled/busy states. */
-export function RetroButton({ label, onPress, variant = 'primary', disabled, busy, accessibilityHint }: ButtonProps) {
-  const isPrimary = variant === 'primary';
+export function RetroButton({ label, onPress, variant = 'primary', selected, disabled, busy, accessibilityHint }: ButtonProps) {
+  const isPrimary = variant === 'primary' || !!selected;
+  const inert = !!disabled || !!busy || !!selected;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: !!disabled || !!busy, busy: !!busy }}
-      disabled={disabled || busy}
+      accessibilityState={{ disabled: inert, busy: !!busy, selected: !!selected }}
+      disabled={inert}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
         isPrimary ? styles.buttonPrimary : styles.buttonOutline,
-        (disabled || busy) && styles.buttonDisabled,
-        pressed && !disabled && !busy && styles.buttonPressed,
+        selected && styles.buttonSelected,
+        (disabled || busy) && !selected && styles.buttonDisabled,
+        pressed && !inert && styles.buttonPressed,
       ]}>
       {busy ? (
         <ActivityIndicator color={isPrimary ? colors.onInteractive : colors.interactive} />
@@ -228,6 +249,7 @@ const styles = StyleSheet.create({
   buttonPrimary: { backgroundColor: colors.interactive },
   buttonOutline: { borderWidth: 2, borderColor: colors.interactive },
   buttonDisabled: { opacity: 0.55 },
+  buttonSelected: { backgroundColor: colors.statusConfirmed },
   buttonPressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
   buttonText: { ...type.label, fontSize: 20 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space['2xl'], gap: space.md },

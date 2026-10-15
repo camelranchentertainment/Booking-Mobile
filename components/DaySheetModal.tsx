@@ -217,9 +217,12 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
                   />
                 </Section>
 
-                <Section title="Pay">
-                  <Row label="Fee" value={formatFee(booking.fee)} />
-                </Section>
+                {/* The band's fee and deal notes are admin-only. */}
+                {canEdit && (
+                  <Section title="Pay">
+                    <Row label="Fee" value={formatFee(booking.fee)} />
+                  </Section>
+                )}
 
                 {booking.venue && (
                   <Section title="Venue">
@@ -237,7 +240,7 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
                   </Section>
                 )}
 
-                {(booking.dealNotes || booking.internalNotes) && (
+                {canEdit && (booking.dealNotes || booking.internalNotes) && (
                   <Section title="Notes">
                     {booking.dealNotes && (
                       <Text style={styles.noteText}>{booking.dealNotes}</Text>

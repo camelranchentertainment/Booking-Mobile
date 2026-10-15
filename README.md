@@ -4,12 +4,16 @@ The companion app for [camelranchbooking.com](https://camelranchbooking.com). Bu
 
 ## What's in the app
 
-| Tab | What it shows | Who can edit |
+Four tabs, plus a Band & account screen from the person icon in each header.
+
+| Tab | Members see | Band admins see |
 | --- | --- | --- |
-| **Shows** | Every upcoming show, soonest first, with status | Band admins edit from the day sheet |
-| **Calendar** | Month grid with a colored bar per show; tap a day to see its shows | Band admins edit from the day sheet |
-| **Day Sheet** | The next confirmed show: run of show, venue contact (tap to call), directions | Band admins ("Edit show details") |
-| **Band** | Active roster from the band's Members page, tap to call; account and sign out | No one (manage on the website) |
+| **Shows** | Upcoming shows they're on, with their own answer (You're in / Answer needed / Can't make it) | Every upcoming show in the pipeline with its status |
+| **Calendar** | Their shows on a month grid, colored by their answer | All shows, colored by pipeline status |
+| **Pay** | Their pay per show: coming up, and earned in a chosen year ("Set" by the admin or "Estimate" from their usual rate) | Their own pay, if they're on the roster |
+| **Day Sheet** | Run of show, venue contact, directions, hospitality, **"Can you make it?"** buttons and their pay | Run of show, venue, hospitality, plus **Edit show details** |
+
+Members never receive the band's fee or deal notes: their booking queries don't select those columns, and their pay and answers go through the website's `/api/member/shows` routes, which only return the caller's own rows.
 
 ## Look and feel
 
@@ -33,29 +37,21 @@ Before every commit: `npx tsc --noEmit` and `npx expo lint` must both pass with 
 | --- | --- |
 | iOS bundle ID | `com.camelranchbooking.app` |
 | Android package | `com.camelranchbooking.app` |
+| Expo project | @camelranchentertainment/Booking-Mobile |
 | Home-screen name | Camel Ranch |
 | Store listing name | Camel Ranch Booking (set in App Store Connect / Play Console) |
 
 ## Building for the stores (EAS)
 
-Builds run in Expo's cloud, so no Mac is needed. One-time setup, run from this folder:
+The app is linked to the Expo project **@camelranchentertainment/Booking-Mobile** (`app.json` → `owner`, `extra.eas.projectId`). The Supabase URL and *publishable* key live in `eas.json`; both are public by design (Row-Level Security protects the data), the same values the website ships to every browser.
+
+**Builds run from GitHub, no terminal needed:** Actions → **EAS Build** → *Run workflow* → choose `ios`, `android` or `all`. The workflow type-checks and lints first, then queues the build in Expo's cloud. It needs a repository secret named `EXPO_TOKEN` (an Expo personal access token).
+
+**One-time exception — iOS signing:** Apple requires a person to sign in (with 2-factor) the first time certificates are created, and CI can't do that. Once, from a terminal in this repo:
 
 ```bash
-npm install -g eas-cli
-eas login                      # Expo account
-eas init                       # links this project; adds "owner" + "extra.eas.projectId" to app.json — commit that
-eas env:set --name EXPO_PUBLIC_SUPABASE_URL --value https://ffnhrwfkiryohocscthu.supabase.co --environment production --visibility plaintext
-eas env:set --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <publishable key> --environment production --visibility plaintext
-# repeat both for --environment preview
+npx eas-cli@latest login
+npx eas-cli@latest build --platform ios --profile production   # sign in to Apple when asked; say yes to generating credentials
 ```
 
-Then:
-
-```bash
-eas build --platform ios --profile production       # signs in to Apple and creates certificates for you
-eas build --platform android --profile production
-eas submit --platform ios --latest                  # uploads to App Store Connect / TestFlight
-eas submit --platform android --latest              # uploads to Google Play (needs a Play service-account key)
-```
-
-`preview` builds are internal test builds (an installable `.apk` on Android). Build numbers auto-increment on the EAS side (`appVersionSource: remote`).
+After that, every iOS build (and Android) can run from the GitHub button. To send a finished build to TestFlight / Google Play, tick **submit** when running the workflow (production profile).

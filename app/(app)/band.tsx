@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +25,7 @@ function initials(name: string): string {
 
 /** Everyone on the act's roster with tap-to-call, plus account info and sign-out. */
 export default function BandScreen() {
+  const router = useRouter();
   const { profile, user, signOut } = useAuth();
   const actId = profile?.act_id ?? null;
 
@@ -63,7 +65,20 @@ export default function BandScreen() {
             colors={[colors.orange]}
           />
         }>
-        <ScreenHeader title="The Band" subtitle={actName ?? undefined} />
+        <ScreenHeader
+          title="The Band"
+          subtitle={actName ?? undefined}
+          right={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+              hitSlop={6}
+              style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}>
+              <Ionicons name="close" size={28} color={colors.cream} />
+            </Pressable>
+          }
+        />
         <RetroStripes height={4} gap={2} style={styles.stripes} />
 
         {loading && <StateMessage kind="loading" />}
@@ -154,6 +169,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressed: { opacity: 0.8 },
+  closeBtn: { width: touchTarget, height: touchTarget, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { ...type.label, color: colors.orange, paddingHorizontal: space.xl, marginTop: space['3xl'], marginBottom: space.sm },
   account: { marginHorizontal: space.xl, backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, gap: 2 },
   accountName: { ...type.lg, color: colors.cream },
