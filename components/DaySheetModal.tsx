@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -19,16 +19,18 @@ import {
   type BookingStatus,
 } from '../lib/bookingStatus';
 import { updateBooking, type BookingEditableFields, type UpcomingBooking } from '../lib/bookings';
+import { colors, fonts } from '../lib/theme';
 
+// Mapped onto the shared theme so the modal matches the rest of the app.
 const COLORS = {
-  background: '#0E1628',
-  surface: '#1A2540',
-  border: '#2A3655',
-  accent: '#E8602A',
-  text: '#F5EDD9',
-  textMuted: '#8A96B5',
-  taglineBlue: '#6B8FB5',
-  errorRed: '#E85A5A',
+  background: colors.background,
+  surface: colors.surface,
+  border: colors.border,
+  accent: colors.interactive,
+  text: colors.onBackground,
+  textMuted: colors.textMuted,
+  taglineBlue: colors.mustard,
+  errorRed: colors.danger,
 };
 
 function formatDate(dateStr: string | null): string {
@@ -111,13 +113,16 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (booking) {
-      setForm(toEditState(booking));
-      setEditing(false);
-      setSaveError(null);
-    }
-  }, [booking?.id]);
+  // Reset the form when a different show is opened. Done during render
+  // (React's "adjust state when a prop changes" pattern) rather than in an
+  // effect, so there is no extra render with the previous show's values.
+  const [formFor, setFormFor] = useState<string | null>(null);
+  if (booking && booking.id !== formFor) {
+    setFormFor(booking.id);
+    setForm(toEditState(booking));
+    setEditing(false);
+    setSaveError(null);
+  }
 
   if (!booking || !form) {
     return (
@@ -438,10 +443,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
-  venueName: { fontSize: 24, fontWeight: '700', flex: 1, color: COLORS.text },
+  venueName: { fontFamily: fonts.groovy, fontSize: 26, lineHeight: 36, flex: 1, color: COLORS.text },
   closeButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
-  closeButtonText: { color: COLORS.accent, fontSize: 16, fontWeight: '600' },
-  date: { fontSize: 15, color: COLORS.taglineBlue, marginTop: 4 },
+  closeButtonText: { color: COLORS.accent, fontSize: 16, fontFamily: fonts.bodySemibold },
+  date: { fontFamily: fonts.label, fontSize: 20, letterSpacing: 0.5, color: COLORS.taglineBlue, marginTop: 4 },
   location: { fontSize: 15, color: COLORS.textMuted, marginTop: 2 },
   statusPill: {
     alignSelf: 'flex-start',
@@ -450,14 +455,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginTop: 10,
   },
-  statusPillText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  statusPillText: { color: colors.onInteractive, fontSize: 13, fontFamily: fonts.bodySemibold },
   section: { marginTop: 24 },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fonts.label,
+    fontSize: 18,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    color: COLORS.textMuted,
+    letterSpacing: 1,
+    color: colors.orange,
     marginBottom: 8,
   },
   row: {
@@ -488,7 +493,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  chipText: { color: colors.cream, fontSize: 13, fontFamily: fonts.bodySemibold },
   editRow: { marginBottom: 14 },
   fieldLabel: { fontSize: 13, color: COLORS.textMuted, marginBottom: 4, fontWeight: '600' },
   textInput: {

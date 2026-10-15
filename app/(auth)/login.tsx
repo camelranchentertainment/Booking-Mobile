@@ -1,25 +1,25 @@
-import React, { useState } from 'react';
+import { Image } from 'expo-image';
+import React, { useRef, useState } from 'react';
 import {
-  View,
+  AccessibilityInfo,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
-  Pressable,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  AccessibilityInfo,
+  View,
 } from 'react-native';
-import { useAuth } from '../../contexts/AuthContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const COLORS = {
-  background: '#0E1628',
-  accent: '#E8602A',
-  text: '#F5EDD9',
-  taglineBlue: '#6B8FB5',
-  inputBackground: '#1A2540',
-  errorRed: '#E85A5A',
-};
+import { GroovyText, RetroButton, RetroStripes } from '../../components/retro';
+import { useAuth } from '../../contexts/AuthContext';
+import { colors, fonts, radius, space, touchTarget, type } from '../../lib/theme';
+
+const RESET_PASSWORD_URL = 'https://camelranchbooking.com/reset-password';
+const EMBLEM = require('../../assets/images/logo-emblem.png');
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -27,6 +27,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [focused, setFocused] = useState<'email' | 'password' | null>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const handleSubmit = async () => {
     if (submitting) return; // prevent double-submission
@@ -53,150 +55,125 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.content}>
-        <Text style={styles.title} accessibilityRole="header">
-          Camel Ranch Booking
-        </Text>
-        <Text style={styles.tagline}>Sign in to your account</Text>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.brand}>
+            <Image
+              source={EMBLEM}
+              style={styles.emblem}
+              contentFit="contain"
+              accessibilityIgnoresInvertColors
+              alt=""
+              accessible={false}
+            />
+            <GroovyText size={44} align="center">
+              Camel Ranch
+            </GroovyText>
+            <Text style={styles.wordmark}>BOOKING</Text>
+            <Text style={styles.tagline}>Your shows, in your pocket.</Text>
+          </View>
 
-        <View style={styles.field}>
-          <Text nativeID="emailLabel" style={styles.label}>
-            Email
-          </Text>
-          <TextInput
-            accessibilityLabelledBy="emailLabel"
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            placeholder="you@example.com"
-            placeholderTextColor="#6B7A99"
-            editable={!submitting}
-            returnKeyType="next"
-          />
-        </View>
+          <View style={styles.field}>
+            <Text nativeID="emailLabel" style={styles.label}>
+              EMAIL
+            </Text>
+            <TextInput
+              accessibilityLabelledBy="emailLabel"
+              aria-labelledby="emailLabel"
+              style={[styles.input, focused === 'email' && styles.inputFocused]}
+              value={email}
+              onChangeText={setEmail}
+              onFocus={() => setFocused('email')}
+              onBlur={() => setFocused(null)}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              placeholder="you@yourband.com"
+              placeholderTextColor={colors.textSubtle}
+              editable={!submitting}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              submitBehavior="submit"
+            />
+          </View>
 
-        <View style={styles.field}>
-          <Text nativeID="passwordLabel" style={styles.label}>
-            Password
-          </Text>
-          <TextInput
-            accessibilityLabelledBy="passwordLabel"
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="password"
-            placeholder="••••••••"
-            placeholderTextColor="#6B7A99"
-            editable={!submitting}
-            returnKeyType="go"
-            onSubmitEditing={handleSubmit}
-          />
-        </View>
+          <View style={styles.field}>
+            <Text nativeID="passwordLabel" style={styles.label}>
+              PASSWORD
+            </Text>
+            <TextInput
+              ref={passwordRef}
+              accessibilityLabelledBy="passwordLabel"
+              aria-labelledby="passwordLabel"
+              style={[styles.input, focused === 'password' && styles.inputFocused]}
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setFocused('password')}
+              onBlur={() => setFocused(null)}
+              secureTextEntry
+              autoComplete="current-password"
+              textContentType="password"
+              editable={!submitting}
+              returnKeyType="go"
+              onSubmitEditing={handleSubmit}
+            />
+          </View>
 
-        {formError && (
-          <Text style={styles.error} accessibilityLiveRegion="assertive">
-            {formError}
-          </Text>
-        )}
-
-        <Pressable
-          onPress={handleSubmit}
-          disabled={submitting}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: submitting, busy: submitting }}
-          style={({ pressed }) => [
-            styles.button,
-            submitting && styles.buttonDisabled,
-            pressed && !submitting && styles.buttonPressed,
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator color={COLORS.background} />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
+          {formError && (
+            <Text style={styles.error} accessibilityLiveRegion="assertive" accessibilityRole="alert">
+              {formError}
+            </Text>
           )}
-        </Pressable>
-      </View>
+
+          <View style={styles.submit}>
+            <RetroButton label="Sign in" onPress={handleSubmit} busy={submitting} />
+          </View>
+
+          <Pressable
+            accessibilityRole="link"
+            accessibilityHint="Opens camelranchbooking.com in your browser"
+            onPress={() => Linking.openURL(RESET_PASSWORD_URL).catch(() => {})}
+            style={styles.linkBtn}>
+            <Text style={styles.link}>Forgot your password?</Text>
+          </Pressable>
+
+          <Text style={styles.footnote}>Accounts are set up by your band admin on camelranchbooking.com.</Text>
+        </ScrollView>
+        <RetroStripes height={10} gap={4} />
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  title: {
-    color: COLORS.text,
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  tagline: {
-    color: COLORS.taglineBlue,
-    fontSize: 15,
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  field: {
-    marginBottom: 16,
-  },
-  label: {
-    color: COLORS.text,
-    fontSize: 13,
-    marginBottom: 6,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: space['2xl'], paddingVertical: space['3xl'] },
+  brand: { alignItems: 'center', marginBottom: space['3xl'] },
+  emblem: { width: 168, height: 136, marginBottom: space.sm },
+  wordmark: { fontFamily: fonts.label, fontSize: 26, letterSpacing: 10, color: colors.orange, marginTop: -space.xs },
+  tagline: { ...type.base, color: colors.textMuted, marginTop: space.xs },
+  field: { marginBottom: space.lg },
+  label: { ...type.label, fontSize: 16, color: colors.mustard, marginBottom: space.xs },
   input: {
-    backgroundColor: COLORS.inputBackground,
-    color: COLORS.text,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    color: colors.cream,
+    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    fontFamily: fonts.body,
     fontSize: 16,
-    minHeight: 48, // 48dp minimum touch target
-    borderWidth: 1,
-    borderColor: '#2A3655',
+    minHeight: touchTarget + 4,
+    borderWidth: 2,
+    borderColor: colors.border,
   },
-  error: {
-    color: COLORS.errorRed,
-    fontSize: 14,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  button: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 8,
-    paddingVertical: 14,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  buttonPressed: {
-    opacity: 0.85,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: COLORS.background,
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  inputFocused: { borderColor: colors.orange },
+  error: { ...type.md, color: colors.danger, marginBottom: space.md, textAlign: 'center' },
+  submit: { marginTop: space.sm },
+  linkBtn: { alignSelf: 'center', minHeight: touchTarget, justifyContent: 'center', paddingHorizontal: space.md },
+  link: { ...type.md, color: colors.mustard },
+  footnote: { ...type.sm, color: colors.textSubtle, textAlign: 'center' },
 });

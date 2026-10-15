@@ -1,8 +1,10 @@
+import { toISODate } from './dates';
 import { supabase } from './supabase';
 import type { BookingStatus } from './bookingStatus';
 
-const BOOKING_SELECT = `id, show_date, load_in_time, set_time, door_time, set_length_min, fee, status,
-       deal_notes, internal_notes, sound_system, special_requirements,
+const BOOKING_SELECT = `id, show_date, load_in_time, soundcheck_time, set_time, door_time, end_time,
+       set_length_min, fee, status, deal_notes, internal_notes, sound_system, special_requirements,
+       venue_contact_name,
        venue:venue_id ( id, name, city, state, address, capacity, booking_contact, phone )`;
 
 export interface BookingVenue {
@@ -20,6 +22,9 @@ export interface UpcomingBooking {
   id: string;
   showDate: string | null;
   loadInTime: string | null;
+  soundcheckTime: string | null;
+  endTime: string | null;
+  venueContactName: string | null;
   setTime: string | null;
   doorTime: string | null;
   setLengthMin: number | null;
@@ -39,6 +44,9 @@ function mapBookingRow(row: any): UpcomingBooking {
     id: row.id,
     showDate: row.show_date,
     loadInTime: row.load_in_time,
+    soundcheckTime: row.soundcheck_time,
+    endTime: row.end_time,
+    venueContactName: row.venue_contact_name,
     setTime: row.set_time,
     doorTime: row.door_time,
     setLengthMin: row.set_length_min,
@@ -71,12 +79,52 @@ function mapBookingRow(row: any): UpcomingBooking {
  * for who can see what.
  */
 export async function fetchUpcomingBookings(limit = 25): Promise<UpcomingBooking[]> {
-  const today = new Date().toISOString().slice(0, 10);
+  // Local calendar date, not UTC: toISOString() rolls over to tomorrow
+  // after ~7 PM in US time zones, which would hide tonight's show.
+  const today = toISODate(new Date());
 
   const { data, error } = await supabase
     .from('bookings')
     .select(BOOKING_SELECT)
     .gte('show_date', today)
+    .order('show_date', { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []).map(mapBookingRow);
+}
+
+/** Statuses that never appear on the calendar or as "the next show". */
+const HIDDEN_FROM_SCHEDULE = '(cancelled)';
+
+/**
+ * Every non-cancelled booking with a show date in [startDate, endDate]
+ * (inclusive, "YYYY-MM-DD"), oldest first. Scoped by RLS like
+ * fetchUpcomingBookings — members only receive what the database allows.
+ */
+export async function fetchBookingsInRange(startDate: string, endDate: string): Promise<UpcomingBooking[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(BOOKING_SELECT)
+    .gte('show_date', startDate)
+    .lte('show_date', endDate)
+    .not('status', 'in', HIDDEN_FROM_SCHEDULE)
+    .order('show_date', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []).map(mapBookingRow);
+}
+
+/**
+ * Upcoming shows that are actually happening (confirmed, advancing or under
+ * contract), soonest first — the source for the Day Sheet tab.
+ */
+export async function fetchUpcomingConfirmed(limit = 10): Promise<UpcomingBooking[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(BOOKING_SELECT)
+    .gte('show_date', toISODate(new Date()))
+    .in('status', ['confirmed', 'advancing', 'contract'])
     .order('show_date', { ascending: true })
     .limit(limit);
 
