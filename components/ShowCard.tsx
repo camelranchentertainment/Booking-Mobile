@@ -3,25 +3,39 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { bookingStatusColor, bookingStatusLabel } from '../lib/bookingStatus';
 import type { UpcomingBooking } from '../lib/bookings';
 import { formatCardDate } from '../lib/dates';
+import type { Rsvp } from '../lib/memberShows';
 import { colors, radius, space, touchTarget, type } from '../lib/theme';
-import { StatusPill } from './retro';
+import { RsvpPill, StatusPill } from './retro';
+
+const RSVP_EDGE: Record<Rsvp, string> = {
+  confirmed: colors.statusConfirmed,
+  pending: colors.mustard,
+  declined: colors.statusCancelled,
+};
+const RSVP_SPOKEN: Record<Rsvp, string> = {
+  confirmed: "you're in",
+  pending: 'your answer is needed',
+  declined: "you can't make it",
+};
 
 /**
  * One show as a card: status-colored edge, "SAT · NOV 1" date, venue and
- * city, plus a status pill. Tapping opens the full day sheet.
+ * city, plus a pill. Admins see the booking's pipeline status; members
+ * (when `rsvp` is passed) see their own answer instead. Tapping opens the
+ * full day sheet.
  */
-export function ShowCard({ booking, onPress }: { booking: UpcomingBooking; onPress: () => void }) {
+export function ShowCard({ booking, rsvp, onPress }: { booking: UpcomingBooking; rsvp?: Rsvp; onPress: () => void }) {
   const venue = booking.venue?.name ?? 'Venue TBD';
   const place = [booking.venue?.city, booking.venue?.state].filter(Boolean).join(', ');
   const dateLabel = formatCardDate(booking.showDate);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${venue}, ${dateLabel}${place ? `, ${place}` : ''}, ${bookingStatusLabel(booking.status)}`}
+      accessibilityLabel={`${venue}, ${dateLabel}${place ? `, ${place}` : ''}, ${rsvp ? RSVP_SPOKEN[rsvp] : bookingStatusLabel(booking.status)}`}
       accessibilityHint="Opens the day sheet"
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      <View style={[styles.edge, { backgroundColor: bookingStatusColor(booking.status) }]} />
+      <View style={[styles.edge, { backgroundColor: rsvp ? RSVP_EDGE[rsvp] : bookingStatusColor(booking.status) }]} />
       <View style={styles.main}>
         <Text style={styles.date}>{dateLabel}</Text>
         <Text style={styles.venue} numberOfLines={1}>
@@ -33,7 +47,7 @@ export function ShowCard({ booking, onPress }: { booking: UpcomingBooking; onPre
           </Text>
         ) : null}
       </View>
-      <StatusPill status={booking.status} />
+      {rsvp ? <RsvpPill rsvp={rsvp} /> : <StatusPill status={booking.status} />}
     </Pressable>
   );
 }

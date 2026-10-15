@@ -1,20 +1,32 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AccountButton } from '../../components/AccountButton';
 import { DaySheetModal } from '../../components/DaySheetModal';
 import { RetroStripes, ScreenHeader, StateMessage } from '../../components/retro';
 import { ShowCard } from '../../components/ShowCard';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAsyncData } from '../../hooks/useAsyncData';
 import { bookingStatusColor } from '../../lib/bookingStatus';
-import { fetchBookingsInRange, type UpcomingBooking } from '../../lib/bookings';
+import type { UpcomingBooking } from '../../lib/bookings';
 import { toISODate } from '../../lib/dates';
+import type { Rsvp } from '../../lib/memberShows';
+import { fetchCalendarFeed, type ShowItem } from '../../lib/showFeed';
 import { colors, radius, space, touchTarget, type } from '../../lib/theme';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MAX_BARS = 2;
+const RSVP_BAR: Record<Rsvp, string> = {
+  confirmed: colors.statusConfirmed,
+  pending: colors.mustard,
+  declined: colors.statusCancelled,
+};
+
+/** Bar color: a member sees their own answer; an admin sees the booking's pipeline status. */
+const barColor = (it: ShowItem) => (it.member ? RSVP_BAR[it.member.rsvp] : bookingStatusColor(it.booking.status));
 
 interface MonthCursor {
   year: number;
@@ -29,7 +41,9 @@ function monthBounds({ year, month }: MonthCursor) {
 
 /** Month grid with a colored bar per show (status color), plus the list for the selected day or month. */
 export default function CalendarScreen() {
+  const router = useRouter();
   const { profile } = useAuth();
+  const isMember = profile?.role === 'member';
   const canEdit = profile?.role === 'band_admin' || profile?.role === 'superadmin';
 
   const now = new Date();
@@ -41,18 +55,18 @@ export default function CalendarScreen() {
 
   const { first, last, start, end } = monthBounds(cursor);
   const { data, error, loading, refreshing, refresh } = useAsyncData(
-    `${start}..${end}`,
-    () => fetchBookingsInRange(start, end),
+    `${isMember ? 'member' : 'admin'}:${start}..${end}`,
+    () => fetchCalendarFeed(isMember, start, end),
     "We couldn't load this month. Check your connection and try again."
   );
-  const bookings = data ? data.map((b) => edits[b.id] ?? b) : null;
+  const bookings = data ? data.map((it) => ({ ...it, booking: edits[it.booking.id] ?? it.booking })) : null;
 
   const byDay = useMemo(() => {
-    const map = new Map<string, UpcomingBooking[]>();
-    for (const b of bookings ?? []) {
-      if (!b.showDate) continue;
-      const key = b.showDate.slice(0, 10);
-      map.set(key, [...(map.get(key) ?? []), b]);
+    const map = new Map<string, ShowItem[]>();
+    for (const it of bookings ?? []) {
+      if (!it.booking.showDate) continue;
+      const key = it.booking.showDate.slice(0, 10);
+      map.set(key, [...(map.get(key) ?? []), it]);
     }
     return map;
   }, [bookings]);
@@ -90,7 +104,7 @@ export default function CalendarScreen() {
             colors={[colors.orange]}
           />
         }>
-        <ScreenHeader title="Calendar" />
+        <ScreenHeader title="Calendar" right={<AccountButton />} />
         <RetroStripes height={4} gap={2} style={styles.stripes} />
 
         <View style={styles.monthRow}>
@@ -145,7 +159,7 @@ export default function CalendarScreen() {
                   <Text style={[styles.dayNum, isSelected && styles.dayNumSelected]}>{day}</Text>
                   <View style={styles.bars}>
                     {shows.slice(0, MAX_BARS).map((s) => (
-                      <View key={s.id} style={[styles.bar, { backgroundColor: bookingStatusColor(s.status) }]} />
+                      <View key={s.member?.assignmentId ?? s.booking.id} style={[styles.bar, { backgroundColor: barColor(s) }]} />
                     ))}
                   </View>
                 </Pressable>
@@ -171,12 +185,22 @@ export default function CalendarScreen() {
           </Text>
         )}
         <View style={styles.list}>
-          {listed.map((b) => (
-            <ShowCard key={b.id} booking={b} onPress={() => setOpenShow(b)} />
+          {listed.map((it) => (
+            <ShowCard
+              key={it.member?.assignmentId ?? it.booking.id}
+              booking={it.booking}
+              rsvp={it.member?.rsvp}
+              onPress={() =>
+                isMember
+                  ? router.push({ pathname: '/daysheet', params: { show: it.booking.id } })
+                  : setOpenShow(it.booking)
+              }
+            />
           ))}
         </View>
       </ScrollView>
 
+      {!isMember && (
       <DaySheetModal
         booking={openShow}
         canEdit={canEdit}
@@ -186,6 +210,7 @@ export default function CalendarScreen() {
           setEdits((prev) => ({ ...prev, [updated.id]: updated }));
         }}
       />
+      )}
     </SafeAreaView>
   );
 }

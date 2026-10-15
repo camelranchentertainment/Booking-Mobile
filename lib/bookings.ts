@@ -2,10 +2,21 @@ import { toISODate } from './dates';
 import { supabase } from './supabase';
 import type { BookingStatus } from './bookingStatus';
 
-const BOOKING_SELECT = `id, show_date, load_in_time, soundcheck_time, set_time, door_time, end_time,
-       set_length_min, fee, status, deal_notes, internal_notes, sound_system, special_requirements,
-       venue_contact_name,
+/** Show-day fields every role may see. */
+const SHARED_COLUMNS = `id, show_date, load_in_time, soundcheck_time, set_time, door_time, end_time,
+       set_length_min, status, sound_system, special_requirements, venue_contact_name,
+       meals_provided, drinks_provided, hotel_booked, lodging_details,
        venue:venue_id ( id, name, city, state, address, capacity, booking_contact, phone )`;
+
+/** Admin view adds the deal: fee and notes. */
+const BOOKING_SELECT = `${SHARED_COLUMNS}, fee, deal_notes, internal_notes`;
+
+/**
+ * Member view never requests the band's fee or deal/internal notes. RLS lets
+ * members read their act's bookings, so the column list is what keeps the
+ * money private on a member's phone.
+ */
+const MEMBER_BOOKING_SELECT = SHARED_COLUMNS;
 
 export interface BookingVenue {
   id: string;
@@ -34,11 +45,15 @@ export interface UpcomingBooking {
   internalNotes: string | null;
   soundSystem: string | null;
   specialRequirements: string | null;
+  mealsProvided: boolean;
+  drinksProvided: boolean;
+  hotelBooked: boolean;
+  lodgingDetails: string | null;
   venue: BookingVenue | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapBookingRow(row: any): UpcomingBooking {
+export function mapBookingRow(row: any): UpcomingBooking {
   const venueRaw = Array.isArray(row.venue) ? (row.venue[0] ?? null) : (row.venue ?? null);
   return {
     id: row.id,
@@ -50,12 +65,17 @@ function mapBookingRow(row: any): UpcomingBooking {
     setTime: row.set_time,
     doorTime: row.door_time,
     setLengthMin: row.set_length_min,
-    fee: row.fee,
+    // Absent (undefined) on member queries — normalise to null.
+    fee: row.fee ?? null,
     status: row.status,
-    dealNotes: row.deal_notes,
-    internalNotes: row.internal_notes,
+    dealNotes: row.deal_notes ?? null,
+    internalNotes: row.internal_notes ?? null,
     soundSystem: row.sound_system,
     specialRequirements: row.special_requirements,
+    mealsProvided: row.meals_provided === true,
+    drinksProvided: row.drinks_provided === true,
+    hotelBooked: row.hotel_booked === true,
+    lodgingDetails: row.lodging_details ?? null,
     venue: venueRaw
       ? {
           id: venueRaw.id,
@@ -130,6 +150,22 @@ export async function fetchUpcomingConfirmed(limit = 10): Promise<UpcomingBookin
 
   if (error) throw error;
   return (data ?? []).map(mapBookingRow);
+}
+
+/**
+ * Member-safe details (no fee or deal notes) for specific bookings. Used to
+ * enrich the member's own show list from the web API.
+ */
+export async function fetchMemberBookingDetails(ids: string[]): Promise<Map<string, UpcomingBooking>> {
+  const map = new Map<string, UpcomingBooking>();
+  if (ids.length === 0) return map;
+  const { data, error } = await supabase.from('bookings').select(MEMBER_BOOKING_SELECT).in('id', ids);
+  if (error) throw error;
+  for (const row of data ?? []) {
+    const b = mapBookingRow(row);
+    map.set(b.id, b);
+  }
+  return map;
 }
 
 export interface BookingEditableFields {

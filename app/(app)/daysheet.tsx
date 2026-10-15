@@ -1,14 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
-import { Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useState, type ComponentProps } from 'react';
+import { AccessibilityInfo, Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AccountButton } from '../../components/AccountButton';
 import { DaySheetModal } from '../../components/DaySheetModal';
-import { GroovyText, RetroButton, RetroStripes, ScreenHeader, StateMessage } from '../../components/retro';
+import { GroovyText, RetroButton, RetroStripes, RsvpPill, ScreenHeader, StateMessage } from '../../components/retro';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAsyncData } from '../../hooks/useAsyncData';
-import { fetchUpcomingConfirmed, type UpcomingBooking } from '../../lib/bookings';
+import type { UpcomingBooking } from '../../lib/bookings';
 import { addMinutes, daysFromToday, formatCardDate, formatTime } from '../../lib/dates';
+import { respondToShow, type Rsvp } from '../../lib/memberShows';
+import { formatMoney } from '../../lib/money';
+import { fetchDaySheetFeed } from '../../lib/showFeed';
 import { colors, radius, space, touchTarget, type } from '../../lib/theme';
 
 interface TimelineItem {
@@ -53,28 +58,66 @@ function mapsUrl(query: string): string {
   return Platform.OS === 'ios' ? `maps:?q=${q}` : Platform.OS === 'android' ? `geo:0,0?q=${q}` : `https://maps.google.com/?q=${q}`;
 }
 
-/** Show-day view of the next confirmed show; arrows step through the following ones. */
+/**
+ * Show-day view of the next upcoming show; arrows step through the following
+ * ones. Opening it from a show card (`?show=<bookingId>`) jumps to that show.
+ * Members also answer whether they can make it and see their pay here.
+ */
 export default function DaySheetScreen() {
   const { profile } = useAuth();
+  const isMember = profile?.role === 'member';
   const canEdit = profile?.role === 'band_admin' || profile?.role === 'superadmin';
+  const { show: showParam } = useLocalSearchParams<{ show?: string }>();
 
   const { data, error, loading, refreshing, refresh } = useAsyncData(
-    'upcoming-confirmed',
-    fetchUpcomingConfirmed,
+    `daysheet:${isMember ? 'member' : 'admin'}`,
+    () => fetchDaySheetFeed(isMember),
     "We couldn't load your day sheet. Check your connection and try again."
   );
   const [edits, setEdits] = useState<Record<string, UpcomingBooking>>({});
+  const [rsvpOverrides, setRsvpOverrides] = useState<Record<string, Rsvp>>({});
+  const [rsvpBusy, setRsvpBusy] = useState<Rsvp | null>(null);
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
   const [rawIndex, setIndex] = useState(0);
   const [editing, setEditing] = useState<UpcomingBooking | null>(null);
-  const shows = data ? data.map((b) => edits[b.id] ?? b) : null;
+  const items = data ? data.map((it) => ({ ...it, booking: edits[it.booking.id] ?? it.booking })) : null;
+  const shows = items ? items.map((it) => it.booking) : null;
+
+  // Jump to the show that was tapped elsewhere — once per distinct param,
+  // adjusted during render (no effect, no extra frame on the wrong show).
+  const [appliedParam, setAppliedParam] = useState<string | undefined>(undefined);
+  if (items && showParam && showParam !== appliedParam) {
+    setAppliedParam(showParam);
+    const found = items.findIndex((it) => it.booking.id === showParam);
+    if (found >= 0) setIndex(found);
+  }
+
   // Clamp during render so a refresh that returns fewer shows can't leave us past the end.
   const index = shows ? Math.min(rawIndex, Math.max(0, shows.length - 1)) : 0;
 
   const show = shows?.[index] ?? null;
+  const member = items?.[index]?.member ?? null;
+  const rsvp: Rsvp | null = member ? (rsvpOverrides[member.assignmentId] ?? member.rsvp) : null;
+
+  const answer = async (next: 'confirmed' | 'declined') => {
+    if (!member || rsvpBusy) return;
+    setRsvpBusy(next);
+    setRsvpError(null);
+    try {
+      await respondToShow(member.assignmentId, next);
+      setRsvpOverrides((prev) => ({ ...prev, [member.assignmentId]: next }));
+      AccessibilityInfo.announceForAccessibility(next === 'confirmed' ? "You're in for this show." : "Marked as can't make it.");
+    } catch (err) {
+      console.error('[daysheet] rsvp failed', err);
+      setRsvpError("Your answer didn't save. Check your connection and try again.");
+    } finally {
+      setRsvpBusy(null);
+    }
+  };
 
   const header = (
     <>
-      <ScreenHeader title="Day Sheet" />
+      <ScreenHeader title="Day Sheet" right={<AccountButton />} />
       <RetroStripes height={4} gap={2} style={styles.stripes} />
     </>
   );
@@ -88,8 +131,12 @@ export default function DaySheetScreen() {
         {shows !== null && !error && !show && (
           <StateMessage
             kind="empty"
-            title="No confirmed shows"
-            message="When a show is confirmed, its load-in, doors and set times land here."
+            title={isMember ? 'Nothing coming up' : 'No confirmed shows'}
+            message={
+              isMember
+                ? "When you're on an upcoming show, its load-in, doors and set times land here."
+                : 'When a show is confirmed, its load-in, doors and set times land here.'
+            }
             actionLabel="Refresh"
             onAction={refresh}
           />
@@ -158,6 +205,56 @@ export default function DaySheetScreen() {
           {place ? <Text style={styles.heroPlace}>{place}</Text> : null}
         </View>
 
+        {member && rsvp && (
+          <>
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitleInline}>CAN YOU MAKE IT?</Text>
+              <RsvpPill rsvp={rsvp} />
+            </View>
+            <View style={styles.rsvpRow}>
+              <View style={styles.flex}>
+                <RetroButton
+                  label={rsvp === 'confirmed' ? "I'm in ✓" : "I'm in"}
+                  onPress={() => answer('confirmed')}
+                  selected={rsvp === 'confirmed'}
+                  disabled={rsvpBusy !== null}
+                  busy={rsvpBusy === 'confirmed'}
+                />
+              </View>
+              <View style={styles.flex}>
+                <RetroButton
+                  label="Can't make it"
+                  variant="outline"
+                  onPress={() => answer('declined')}
+                  disabled={rsvp === 'declined' || rsvpBusy !== null}
+                  busy={rsvpBusy === 'declined'}
+                />
+              </View>
+            </View>
+            {rsvpError ? (
+              <Text style={styles.error} accessibilityRole="alert">
+                {rsvpError}
+              </Text>
+            ) : null}
+
+            <Text style={styles.sectionTitle}>YOUR PAY</Text>
+            <View style={[styles.card, styles.payCard]}>
+              {member.pay ? (
+                <>
+                  <Text style={styles.payAmount}>{formatMoney(member.pay.amount)}</Text>
+                  <Text style={styles.cardLabel}>
+                    {member.pay.source === 'confirmed'
+                      ? 'Set by your band admin for this show'
+                      : 'Estimated from your usual rate'}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.cardLabel}>No pay set for this show yet. Ask your band admin.</Text>
+              )}
+            </View>
+          </>
+        )}
+
         <Text style={styles.sectionTitle}>RUN OF SHOW</Text>
         {timeline.length === 0 ? (
           <Text style={styles.muted}>Times haven&apos;t been set for this show yet.</Text>
@@ -219,6 +316,18 @@ export default function DaySheetScreen() {
           </>
         )}
 
+        {(show.mealsProvided || show.drinksProvided || show.hotelBooked || show.lodgingDetails) && (
+          <>
+            <Text style={styles.sectionTitle}>HOSPITALITY</Text>
+            <View style={styles.chips}>
+              {show.mealsProvided ? <Chip icon="restaurant-outline" label="Meals provided" /> : null}
+              {show.drinksProvided ? <Chip icon="beer-outline" label="Drinks provided" /> : null}
+              {show.hotelBooked ? <Chip icon="bed-outline" label="Hotel booked" /> : null}
+            </View>
+            {show.lodgingDetails ? <Text style={[styles.note, styles.lodging]}>{show.lodgingDetails}</Text> : null}
+          </>
+        )}
+
         {(show.soundSystem || show.specialRequirements) && (
           <>
             <Text style={styles.sectionTitle}>PRODUCTION</Text>
@@ -236,16 +345,27 @@ export default function DaySheetScreen() {
         )}
       </ScrollView>
 
-      <DaySheetModal
-        booking={editing}
-        canEdit={canEdit}
-        onClose={() => setEditing(null)}
-        onUpdated={(updated) => {
-          setEditing(updated);
-          setEdits((prev) => ({ ...prev, [updated.id]: updated }));
-        }}
-      />
+      {canEdit && (
+        <DaySheetModal
+          booking={editing}
+          canEdit={canEdit}
+          onClose={() => setEditing(null)}
+          onUpdated={(updated) => {
+            setEditing(updated);
+            setEdits((prev) => ({ ...prev, [updated.id]: updated }));
+          }}
+        />
+      )}
     </SafeAreaView>
+  );
+}
+
+function Chip({ icon, label }: { icon: ComponentProps<typeof Ionicons>['name']; label: string }) {
+  return (
+    <View style={styles.chip}>
+      <Ionicons name={icon} size={16} color={colors.mustard} />
+      <Text style={styles.chipText}>{label}</Text>
+    </View>
   );
 }
 
@@ -312,5 +432,30 @@ const styles = StyleSheet.create({
   cardLabel: { ...type.sm, color: colors.textMuted },
   cardValue: { ...type.md, color: colors.cream },
   note: { ...type.base, color: colors.cream, paddingHorizontal: space.lg, paddingVertical: space.sm },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.xl,
+    marginTop: space['2xl'],
+    marginBottom: space.sm,
+  },
+  sectionTitleInline: { ...type.label, color: colors.orange },
+  rsvpRow: { flexDirection: 'row', gap: space.md, paddingHorizontal: space.xl },
+  error: { ...type.md, color: colors.danger, paddingHorizontal: space.xl, marginTop: space.sm },
+  payCard: { paddingHorizontal: space.lg, paddingVertical: space.lg, gap: space.xs },
+  payAmount: { fontFamily: type.title.fontFamily, fontSize: 34, lineHeight: 44, color: colors.mustard },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingHorizontal: space.xl },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+  },
+  chipText: { ...type.md, fontSize: 14, color: colors.cream },
+  lodging: { paddingHorizontal: space.xl, marginTop: space.sm },
   editWrap: { paddingHorizontal: space.xl, marginTop: space['2xl'] },
 });
