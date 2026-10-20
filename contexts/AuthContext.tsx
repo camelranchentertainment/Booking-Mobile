@@ -6,6 +6,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import { unregisterPushToken } from '../lib/push';
 import { supabase } from '../lib/supabase';
 
 export interface Profile {
@@ -107,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Stop this phone getting the signed-out user's reminders (needs the session, so before signOut).
+    await unregisterPushToken();
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);

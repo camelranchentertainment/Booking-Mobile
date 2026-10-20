@@ -36,7 +36,15 @@
         }
       ],
       "expo-secure-store",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#E8622C",
+          "defaultChannel": "shows"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
