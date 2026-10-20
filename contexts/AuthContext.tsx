@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { clearWatchShows } from '../lib/watchSync';
 
 export interface Profile {
   id: string;
@@ -107,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // The watch must not keep showing the signed-out user's schedule.
+    clearWatchShows();
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);

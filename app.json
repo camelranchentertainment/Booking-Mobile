@@ -13,7 +13,8 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "7RC6SWN8ZU"
     },
     "android": {
       "package": "com.camelranchbooking.app",
@@ -36,7 +37,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-status-bar"
+      "expo-status-bar",
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,
