@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react';
 import type { ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { colors, fonts } from '../../lib/theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -17,6 +18,8 @@ function tabIcon(name: IconName, focusedName: IconName) {
 
 export default function AppLayout() {
   const insets = useSafeAreaInsets();
+  // Show-day reminders: register this device and open the day sheet on tap.
+  usePushNotifications();
   return (
     <Tabs
       screenOptions={{
