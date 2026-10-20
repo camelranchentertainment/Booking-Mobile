@@ -6,7 +6,9 @@ module.exports = () => ({
   name: 'CamelRanchComplication',
   displayName: 'Next Show',
   // Apple requires a watch extension's ID to sit under its watch app's ID.
-  bundleIdentifier: '.watch.complication',
+  // Not ".complication": Apple reserves that suffix for PushKit push topics
+  // and refuses to register it as an App ID ("is not available").
+  bundleIdentifier: '.watch.nextshow',
   deploymentTarget: '10.0',
   colors: { $accent: '#E8622C' },
   frameworks: ['WidgetKit', 'SwiftUI'],
