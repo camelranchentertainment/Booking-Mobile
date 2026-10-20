@@ -3,14 +3,14 @@
     "name": "Camel Ranch",
     "slug": "Booking-Mobile",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "camelranch",
     "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.camelranchbooking.app",
       "icon": "./assets/images/icon.png",
-      "supportsTablet": false,
+      "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },

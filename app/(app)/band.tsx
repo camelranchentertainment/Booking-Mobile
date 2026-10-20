@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAsyncData } from '../../hooks/useAsyncData';
 import { fetchActName, fetchBandRoster, type BandPerson } from '../../lib/band';
 import { avatarColors, colors, radius, space, touchTarget, type } from '../../lib/theme';
+import { READABLE_MAX_WIDTH } from '../../lib/layout';
 
 const ROLE_LABELS: Record<string, string> = {
   superadmin: 'Superadmin',
@@ -141,7 +142,8 @@ export default function BandScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  // Centered readable column on wide windows (iPad, iPhone Duo unfolded, Mac).
+  container: { flex: 1, width: '100%', maxWidth: READABLE_MAX_WIDTH, alignSelf: 'center', backgroundColor: colors.background },
   flex: { flex: 1 },
   scroll: { paddingBottom: space['4xl'] },
   stripes: { marginBottom: space.lg },

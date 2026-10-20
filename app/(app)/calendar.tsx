@@ -16,6 +16,7 @@ import { toISODate } from '../../lib/dates';
 import type { Rsvp } from '../../lib/memberShows';
 import { fetchCalendarFeed, type ShowItem } from '../../lib/showFeed';
 import { colors, radius, space, touchTarget, type } from '../../lib/theme';
+import { READABLE_MAX_WIDTH } from '../../lib/layout';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MAX_BARS = 2;
@@ -218,7 +219,8 @@ export default function CalendarScreen() {
 const CELL_GAP = 4;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  // Centered readable column on wide windows (iPad, iPhone Duo unfolded, Mac).
+  container: { flex: 1, width: '100%', maxWidth: READABLE_MAX_WIDTH, alignSelf: 'center', backgroundColor: colors.background },
   scroll: { paddingBottom: space['4xl'] },
   stripes: { marginBottom: space.md },
   monthRow: {
