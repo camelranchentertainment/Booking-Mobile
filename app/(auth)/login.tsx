@@ -18,6 +18,8 @@ import { GroovyText, RetroButton, RetroStripes } from '../../components/retro';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, fonts, radius, space, touchTarget, type } from '../../lib/theme';
 
+const LOGIN_MAX_WIDTH = 480;
+
 const RESET_PASSWORD_URL = 'https://camelranchbooking.com/reset-password';
 const EMBLEM = require('../../assets/images/logo-emblem.png');
 
@@ -151,7 +153,16 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: space['2xl'], paddingVertical: space['3xl'] },
+  // The sign-in form stays phone-width on iPad, the iPhone Duo and Mac.
+  content: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: LOGIN_MAX_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: space['2xl'],
+    paddingVertical: space['3xl'],
+  },
   brand: { alignItems: 'center', marginBottom: space['3xl'] },
   emblem: { width: 168, height: 136, marginBottom: space.sm },
   wordmark: { fontFamily: fonts.label, fontSize: 26, letterSpacing: 10, color: colors.orange, marginTop: -space.xs },

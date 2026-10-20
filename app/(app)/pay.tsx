@@ -11,6 +11,7 @@ import { formatCardDate, parseLocalDate, toISODate } from '../../lib/dates';
 import { fetchMemberShows, type MemberShow } from '../../lib/memberShows';
 import { formatMoney } from '../../lib/money';
 import { colors, radius, space, touchTarget, type } from '../../lib/theme';
+import { READABLE_MAX_WIDTH } from '../../lib/layout';
 
 /** Sum of known pay; shows with no rate on file count as $0 and are flagged separately. */
 function total(shows: MemberShow[]): number {
@@ -190,7 +191,8 @@ function PayRow({ show, onPress }: { show: MemberShow; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  // Centered readable column on wide windows (iPad, iPhone Duo unfolded, Mac).
+  container: { flex: 1, width: '100%', maxWidth: READABLE_MAX_WIDTH, alignSelf: 'center', backgroundColor: colors.background },
   flex: { flex: 1 },
   scroll: { paddingBottom: space['4xl'] },
   stripes: { marginBottom: space.lg },

@@ -15,6 +15,7 @@ import { respondToShow, type Rsvp } from '../../lib/memberShows';
 import { formatMoney } from '../../lib/money';
 import { fetchDaySheetFeed } from '../../lib/showFeed';
 import { colors, radius, space, touchTarget, type } from '../../lib/theme';
+import { READABLE_MAX_WIDTH } from '../../lib/layout';
 
 interface TimelineItem {
   time: string;
@@ -370,7 +371,8 @@ function Chip({ icon, label }: { icon: ComponentProps<typeof Ionicons>['name']; 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  // Centered readable column on wide windows (iPad, iPhone Duo unfolded, Mac).
+  container: { flex: 1, width: '100%', maxWidth: READABLE_MAX_WIDTH, alignSelf: 'center', backgroundColor: colors.background },
   flex: { flex: 1 },
   scroll: { paddingBottom: space['4xl'] },
   stripes: { marginBottom: space.md },
