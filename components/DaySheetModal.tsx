@@ -20,6 +20,7 @@ import {
 } from '../lib/bookingStatus';
 import { updateBooking, type BookingEditableFields, type UpcomingBooking } from '../lib/bookings';
 import { colors, fonts } from '../lib/theme';
+import { READABLE_MAX_WIDTH } from '../lib/layout';
 
 // Mapped onto the shared theme so the modal matches the rest of the app.
 const COLORS = {
@@ -439,7 +440,15 @@ function EditRow({
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 20, paddingBottom: 48, backgroundColor: COLORS.background },
+  // Readable column when the sheet opens full screen on a wide window.
+  content: {
+    width: '100%',
+    maxWidth: READABLE_MAX_WIDTH,
+    alignSelf: 'center',
+    padding: 20,
+    paddingBottom: 48,
+    backgroundColor: COLORS.background,
+  },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
