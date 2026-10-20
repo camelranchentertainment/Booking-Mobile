@@ -13,7 +13,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "7RC6SWN8ZU"
     },
     "android": {
       "package": "com.camelranchbooking.app",
@@ -44,7 +45,8 @@
           "color": "#E8622C",
           "defaultChannel": "shows"
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,

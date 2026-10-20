@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,6 +12,7 @@ import { useAsyncData } from '../../hooks/useAsyncData';
 import { useLayout } from '../../hooks/useLayout';
 import type { UpcomingBooking } from '../../lib/bookings';
 import { fetchShowsFeed } from '../../lib/showFeed';
+import { syncShowsToWatch } from '../../lib/watchSync';
 import { colors, space } from '../../lib/theme';
 import { CONTENT_MAX_WIDTH, padToColumns } from '../../lib/layout';
 
@@ -39,6 +40,11 @@ export default function ShowsScreen() {
   const [edits, setEdits] = useState<Record<string, UpcomingBooking>>({});
   const [selected, setSelected] = useState<UpcomingBooking | null>(null);
   const items = data ? data.map((it) => ({ ...it, booking: edits[it.booking.id] ?? it.booking })) : null;
+
+  // Keep the Apple Watch app's show list current whenever fresh shows load (no-op without a watch).
+  useEffect(() => {
+    if (data) syncShowsToWatch(data.map((it) => it.booking));
+  }, [data]);
 
   const firstName = profile?.display_name?.split(' ')[0];
   const count = items?.length ?? 0;
