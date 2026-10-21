@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RetroButton, RetroStripes, ScreenHeader, StateMessage } from '../../components/retro';
@@ -27,7 +27,7 @@ function initials(name: string): string {
 /** Everyone on the act's roster with tap-to-call, plus account info and sign-out. */
 export default function BandScreen() {
   const router = useRouter();
-  const { profile, user, signOut } = useAuth();
+  const { profile, user, signOut, deleteAccount } = useAuth();
   const actId = profile?.act_id ?? null;
 
   const { data, error, loading, refreshing, refresh } = useAsyncData(
@@ -50,6 +50,34 @@ export default function BandScreen() {
     } finally {
       setSigningOut(false);
     }
+  };
+
+  const [deleting, setDeleting] = useState(false);
+
+  const runDelete = async () => {
+    if (deleting) return; // prevent a double tap from sending two deletes
+    setDeleting(true);
+    const result = await deleteAccount();
+    if (result.ok) {
+      // AuthContext has cleared the session; the root layout routes to sign-in.
+      Alert.alert('Account deleted', 'Your Camel Ranch Booking account has been permanently deleted.');
+      return;
+    }
+    setDeleting(false);
+    Alert.alert("Account not deleted", result.message);
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      'Delete your account?',
+      `This permanently deletes your Camel Ranch Booking login and removes you from ${actName ?? 'your band'}. ` +
+        "Your band's shows and history stay with the band. This can't be undone.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete account', style: 'destructive', onPress: () => void runDelete() },
+      ],
+      { cancelable: true }
+    );
   };
 
   const version = Constants.expoConfig?.version ?? '';
@@ -132,9 +160,34 @@ export default function BandScreen() {
           {user?.email ? <Text style={styles.muted2}>{user.email}</Text> : null}
           {profile?.role ? <Text style={styles.muted2}>{ROLE_LABELS[profile.role] ?? profile.role}</Text> : null}
           <View style={styles.signOut}>
-            <RetroButton label="Sign out" variant="outline" busy={signingOut} onPress={handleSignOut} />
+            <RetroButton
+              label="Sign out"
+              variant="outline"
+              busy={signingOut}
+              disabled={deleting}
+              onPress={handleSignOut}
+            />
           </View>
         </View>
+        {/* Sits on the page background, not the card: the danger red only
+            meets 4.5:1 contrast on the darker background (5.19:1 vs 4.11:1).
+            Superadmin accounts are never deletable (the server refuses too). */}
+        {profile?.role !== 'superadmin' && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
+            accessibilityHint="Permanently deletes your account after you confirm"
+            accessibilityState={{ disabled: deleting || signingOut, busy: deleting }}
+            disabled={deleting || signingOut}
+            onPress={confirmDelete}
+            style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}>
+            {deleting ? (
+              <ActivityIndicator color={colors.danger} />
+            ) : (
+              <Text style={styles.deleteText}>Delete account</Text>
+            )}
+          </Pressable>
+        )}
         {version ? <Text style={styles.version}>Camel Ranch Booking · v{version}</Text> : null}
       </ScrollView>
     </SafeAreaView>
@@ -177,5 +230,14 @@ const styles = StyleSheet.create({
   accountName: { ...type.lg, color: colors.cream },
   muted2: { ...type.sm, color: colors.textMuted },
   signOut: { marginTop: space.lg },
+  deleteBtn: {
+    minHeight: touchTarget,
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.lg,
+    marginTop: space.md,
+  },
+  deleteText: { ...type.md, color: colors.danger },
   version: { ...type.sm, color: colors.textSubtle, textAlign: 'center', marginTop: space.xl },
 });

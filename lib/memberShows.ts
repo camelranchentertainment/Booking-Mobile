@@ -13,7 +13,7 @@ import { supabase } from './supabase';
  * means no new database policy is needed for the app.
  */
 
-const API_BASE: string =
+export const API_BASE: string =
   (Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined)?.apiBaseUrl ??
   'https://www.camelranchbooking.com';
 
@@ -59,7 +59,7 @@ export class ApiError extends Error {
   }
 }
 
-async function authHeader(): Promise<Record<string, string>> {
+export async function authHeader(): Promise<Record<string, string>> {
   const {
     data: { session },
   } = await supabase.auth.getSession();

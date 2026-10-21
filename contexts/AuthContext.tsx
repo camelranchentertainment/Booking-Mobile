@@ -6,6 +6,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import { deleteMyAccount, type DeleteAccountResult } from '../lib/account';
 import { unregisterPushToken } from '../lib/push';
 import { supabase } from '../lib/supabase';
 import { clearWatchShows } from '../lib/watchSync';
@@ -25,6 +26,8 @@ interface AuthContextValue {
   error: string | null;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  /** Permanently deletes the account on the server, then clears the local session. */
+  deleteAccount: () => Promise<DeleteAccountResult>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -118,6 +121,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
+  const deleteAccount = async (): Promise<DeleteAccountResult> => {
+    const result = await deleteMyAccount();
+    if (!result.ok) return result;
+
+    // The server has already deleted the user, their profile and push tokens.
+    // Clear everything on this device. Local scope only: the server-side
+    // session went with the user, so a global sign-out call would just fail.
+    clearWatchShows();
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (err) {
+      console.warn('[auth] local sign-out after account deletion failed', err);
+    }
+    setSession(null);
+    setProfile(null);
+    return result;
+  };
+
   const refreshProfile = async () => {
     if (!session?.user) return;
     const p = await fetchProfile(session.user.id);
@@ -134,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error,
         signIn,
         signOut,
+        deleteAccount,
         refreshProfile,
       }}
     >
