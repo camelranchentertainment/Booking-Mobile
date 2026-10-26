@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '../../../components/BackButton';
 import { RetroStripes, ScreenHeader, StateMessage } from '../../../components/retro';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAsyncData } from '../../../hooks/useAsyncData';
@@ -14,19 +15,6 @@ import { READABLE_MAX_WIDTH } from '../../../lib/layout';
 import { colors, fonts, radius, space, touchTarget, type } from '../../../lib/theme';
 import { fetchVenues, filterVenues, placeLabel, type VenueSummary } from '../../../lib/venues';
 
-function BackButton() {
-  const router = useRouter();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Back"
-      onPress={() => (router.canGoBack() ? router.back() : router.replace('/more'))}
-      hitSlop={6}
-      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
-      <Ionicons name="chevron-back" size={28} color={colors.cream} />
-    </Pressable>
-  );
-}
 
 function VenueRow({ venue, onPress }: { venue: VenueSummary; onPress: () => void }) {
   const place = placeLabel(venue);
@@ -68,7 +56,7 @@ export default function VenuesScreen() {
       <ScreenHeader
         title="Venues"
         subtitle={data ? `${total} in your book` : undefined}
-        right={<BackButton />}
+        right={<BackButton fallback={'/more'} />}
       />
       <RetroStripes height={4} gap={2} style={styles.stripes} />
       <View style={styles.searchWrap}>
@@ -124,7 +112,6 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: space['4xl'] },
   stripes: { marginBottom: space.lg },
   flex: { flex: 1 },
-  iconBtn: { width: touchTarget, height: touchTarget, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.75 },
   searchWrap: {
     flexDirection: 'row',
