@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react';
 import type { ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '../../contexts/AuthContext';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { colors, fonts } from '../../lib/theme';
 
@@ -18,6 +19,9 @@ function tabIcon(name: IconName, focusedName: IconName) {
 
 export default function AppLayout() {
   const insets = useSafeAreaInsets();
+  const { profile } = useAuth();
+  // Admin tools (More) are for band admins and superadmin only; members never see the tab.
+  const isAdmin = profile?.role === 'band_admin' || profile?.role === 'superadmin';
   // Show-day reminders: register this device and open the day sheet on tap.
   usePushNotifications();
   return (
@@ -50,6 +54,14 @@ export default function AppLayout() {
       <Tabs.Screen
         name="daysheet"
         options={{ title: 'Day Sheet', tabBarIcon: tabIcon('time-outline', 'time') }}
+      />
+      <Tabs.Screen
+        name="more"
+        options={{
+          title: 'More',
+          href: isAdmin ? undefined : null,
+          tabBarIcon: tabIcon('grid-outline', 'grid'),
+        }}
       />
       {/* Band roster + account: opened from the header button, not a tab. */}
       <Tabs.Screen name="band" options={{ href: null, title: 'Band' }} />

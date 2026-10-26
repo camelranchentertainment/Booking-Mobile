@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
-import { AccessibilityInfo, Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountButton } from '../../components/AccountButton';
@@ -12,6 +12,7 @@ import { useAsyncData } from '../../hooks/useAsyncData';
 import type { UpcomingBooking } from '../../lib/bookings';
 import { addMinutes, daysFromToday, formatCardDate, formatTime } from '../../lib/dates';
 import { respondToShow, type Rsvp } from '../../lib/memberShows';
+import { mapsUrl, openSafely } from '../../lib/links';
 import { formatMoney } from '../../lib/money';
 import { fetchDaySheetFeed } from '../../lib/showFeed';
 import { colors, radius, space, touchTarget, type } from '../../lib/theme';
@@ -44,19 +45,6 @@ function countdownLabel(dateStr: string | null): string | null {
   if (days === 0) return 'TONIGHT';
   if (days === 1) return 'TOMORROW';
   return `IN ${days} DAYS`;
-}
-
-async function openSafely(url: string) {
-  try {
-    await Linking.openURL(url);
-  } catch (err) {
-    console.warn('[daysheet] could not open', url, err);
-  }
-}
-
-function mapsUrl(query: string): string {
-  const q = encodeURIComponent(query);
-  return Platform.OS === 'ios' ? `maps:?q=${q}` : Platform.OS === 'android' ? `geo:0,0?q=${q}` : `https://maps.google.com/?q=${q}`;
 }
 
 /**
