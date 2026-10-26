@@ -3,7 +3,7 @@
 // directions and website, and editable contact + notes. Each show keeps its
 // own day-of Show Contact; this is the venue's standing contact.
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
 import {
   AccessibilityInfo,
@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '../../../../components/BackButton';
 import { RetroButton, RetroStripes, ScreenHeader, StateMessage } from '../../../../components/retro';
 import { useAsyncData } from '../../../../hooks/useAsyncData';
 import { READABLE_MAX_WIDTH } from '../../../../lib/layout';
@@ -28,19 +29,6 @@ import { fetchVenue, isPlausibleEmail, placeLabel, updateVenue, type VenueDetail
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-function BackButton() {
-  const router = useRouter();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Back to venues"
-      onPress={() => (router.canGoBack() ? router.back() : router.replace('/more/venues'))}
-      hitSlop={6}
-      style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
-      <Ionicons name="chevron-back" size={28} color={colors.cream} />
-    </Pressable>
-  );
-}
 
 function Action({ icon, label, hint, onPress }: { icon: IconName; label: string; hint: string; onPress: () => void }) {
   return (
@@ -148,7 +136,7 @@ export default function VenueScreen() {
     }
   };
 
-  const header = <ScreenHeader title={venue?.name ?? 'Venue'} subtitle={venue ? placeLabel(venue) || undefined : undefined} right={<BackButton />} />;
+  const header = <ScreenHeader title={venue?.name ?? 'Venue'} subtitle={venue ? placeLabel(venue) || undefined : undefined} right={<BackButton fallback={'/more/venues'} label="Back to venues" />} />;
 
   if (loading && !venue) {
     return (
@@ -266,7 +254,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { paddingBottom: space['4xl'] },
   stripes: { marginBottom: space.lg },
-  iconBtn: { width: touchTarget, height: touchTarget, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.75 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingHorizontal: space.xl, marginBottom: space.lg },
   action: {
