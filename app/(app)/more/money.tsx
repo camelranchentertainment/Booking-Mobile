@@ -2,7 +2,7 @@
 // Band admins: the band's money for one calendar year — earned, upcoming,
 // expenses (incl. band pay) and net — plus played-but-unpaid shows and every
 // show's fee. Same rules as the website's Financials page (lib/adminMoney.ts).
-// View-only: expenses and payments are entered on the website.
+// Played-but-unpaid shows can be marked paid here; expenses are still entered on the website.
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -10,6 +10,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '../../../components/BackButton';
+import { MarkPaidModal } from '../../../components/MarkPaidModal';
 import { RetroStripes, ScreenHeader, StateMessage } from '../../../components/retro';
 import { useAsyncData } from '../../../hooks/useAsyncData';
 import { fetchYearMoney, type MoneyShow } from '../../../lib/adminMoney';
@@ -35,9 +36,9 @@ function Stat({ label, value, sub }: { label: string; value: number; sub?: strin
   );
 }
 
-function ShowRow({ show, onPress }: { show: MoneyShow; onPress: () => void }) {
+function ShowRow({ show, onPress, onMarkPaid }: { show: MoneyShow; onPress: () => void; onMarkPaid?: () => void }) {
   const amount = show.state === 'paid' ? show.received : show.fee;
-  return (
+  const row = (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${formatCardDate(show.date)}, ${show.venue}. ${STATE_LABEL[show.state]}. ${amount !== null ? formatMoney(amount) : 'No fee set'}`}
@@ -55,6 +56,20 @@ function ShowRow({ show, onPress }: { show: MoneyShow; onPress: () => void }) {
       </View>
     </Pressable>
   );
+  if (!onMarkPaid) return row;
+  return (
+    <View style={styles.owedWrap}>
+      {row}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Mark ${show.venue} paid`}
+        onPress={onMarkPaid}
+        style={({ pressed }) => [styles.markPaid, pressed && styles.pressed]}>
+        <Ionicons name="checkmark-circle-outline" size={20} color={colors.onInteractive} />
+        <Text style={styles.markPaidText}>Mark paid</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 export default function MoneyScreen() {
@@ -69,6 +84,7 @@ export default function MoneyScreen() {
   );
 
   const openShow = (s: MoneyShow) => router.push({ pathname: '/daysheet', params: { show: s.id } });
+  const [paying, setPaying] = useState<MoneyShow | null>(null);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -113,9 +129,11 @@ export default function MoneyScreen() {
             {data.unpaid.length > 0 ? (
               <>
                 <Text style={styles.section}>STILL OWED ({data.unpaid.length})</Text>
-                <Text style={styles.note}>Played but not marked paid. Mark them paid on the website once the money’s in.</Text>
+                <Text style={styles.note}>Played but not marked paid. Tap Mark paid once the money’s in.</Text>
                 <View style={styles.list}>
-                  {data.unpaid.map((s) => <ShowRow key={s.id} show={s} onPress={() => openShow(s)} />)}
+                  {data.unpaid.map((s) => (
+                    <ShowRow key={s.id} show={s} onPress={() => openShow(s)} onMarkPaid={() => setPaying(s)} />
+                  ))}
                 </View>
               </>
             ) : null}
@@ -130,11 +148,19 @@ export default function MoneyScreen() {
             </View>
 
             <Text style={styles.footnote}>
-              Same numbers as Financials on camelranchbooking.com. Add expenses and mark shows paid there.
+              Same numbers as Financials on camelranchbooking.com. Add expenses there.
             </Text>
           </>
         ) : null}
       </ScrollView>
+      <MarkPaidModal
+        show={paying}
+        onClose={() => setPaying(null)}
+        onSaved={() => {
+          setPaying(null);
+          void refresh();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -181,5 +207,16 @@ const styles = StyleSheet.create({
   rowRight: { alignItems: 'flex-end', gap: 2 },
   rowAmount: { ...type.lg, color: colors.cream },
   rowState: { ...type.sm, color: colors.textMuted },
+  owedWrap: { gap: space.xs },
+  markPaid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+    minHeight: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.orange,
+  },
+  markPaidText: { ...type.md, color: colors.onInteractive },
   footnote: { ...type.sm, color: colors.textSubtle, textAlign: 'center', paddingHorizontal: space.xl, marginTop: space['2xl'] },
 });
