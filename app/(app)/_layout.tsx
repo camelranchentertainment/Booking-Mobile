@@ -56,6 +56,14 @@ export default function AppLayout() {
         options={{ title: 'Day Sheet', tabBarIcon: tabIcon('time-outline', 'time') }}
       />
       <Tabs.Screen
+        name="assistant"
+        options={{
+          title: 'Assistant',
+          href: isAdmin ? undefined : null,
+          tabBarIcon: tabIcon('sparkles-outline', 'sparkles'),
+        }}
+      />
+      <Tabs.Screen
         name="more"
         options={{
           title: 'More',
