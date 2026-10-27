@@ -46,3 +46,24 @@ export async function fetchYearMoney(year: number): Promise<YearMoney> {
   if (bookingsRes.error) throw bookingsRes.error;
   return summarizeYear(year, (bookingsRes.data ?? []) as unknown as BookingRow[], expenses, toISODate(new Date()));
 }
+
+/**
+ * Records that a played show has been paid: marks it completed and "received"
+ * with the amount, through the website's /api/bookings/settle (band admins
+ * only, enforced on the server — web PR #168). The website then reminds the
+ * admin to send the venue a thank-you.
+ *
+ * @throws Error with the server's message when the save is refused
+ */
+export async function markShowPaid(bookingId: string, amount: number): Promise<void> {
+  if (!Number.isFinite(amount) || amount < 0) throw new Error('Enter the amount received.');
+  const res = await fetch(`${API_BASE}/api/bookings/settle`, {
+    method: 'POST',
+    headers: { ...(await authHeader()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookingId, actual_amount_received: amount, payment_status: 'received' }),
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error || `Couldn't mark it paid (${res.status}).`);
+  }
+}
