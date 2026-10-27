@@ -19,6 +19,7 @@ import {
   type BookingStatus,
 } from '../lib/bookingStatus';
 import { updateBooking, type BookingEditableFields, type UpcomingBooking } from '../lib/bookings';
+import { openSafely, telUrl } from '../lib/links';
 import { colors, fonts } from '../lib/theme';
 import { READABLE_MAX_WIDTH } from '../lib/layout';
 
@@ -66,11 +67,35 @@ function formatFee(fee: number | null): string | null {
 /** Accepts 24-hour "HH:MM" only — the same shape the schedule inputs collect. */
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
+/** Set length in whole minutes, 1–600 (the web form's range). */
+const MINUTES_PATTERN = /^\d{1,3}$/;
+function setLengthValid(value: string): boolean {
+  if (value === '') return true;
+  if (!MINUTES_PATTERN.test(value)) return false;
+  const n = Number(value);
+  return n >= 1 && n <= 600;
+}
+
+function formatSetLength(min: number | null): string | null {
+  if (!min) return null;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
+}
+
+/** "HH:MM" from the form → the "HH:MM:SS" Postgres `time` stores; blank → null. */
+function toDbTime(value: string): string | null {
+  return value === '' ? null : `${value}:00`;
+}
+
 interface EditState {
   status: BookingStatus;
   loadInTime: string;
-  setTime: string;
+  soundcheckTime: string;
   doorTime: string;
+  setTime: string;
+  setLengthMin: string;
   fee: string;
   dealNotes: string;
   internalNotes: string;
@@ -80,8 +105,10 @@ function toEditState(booking: UpcomingBooking): EditState {
   return {
     status: (booking.status as BookingStatus) ?? 'pitch',
     loadInTime: booking.loadInTime?.slice(0, 5) ?? '',
-    setTime: booking.setTime?.slice(0, 5) ?? '',
+    soundcheckTime: booking.soundcheckTime?.slice(0, 5) ?? '',
     doorTime: booking.doorTime?.slice(0, 5) ?? '',
+    setTime: booking.setTime?.slice(0, 5) ?? '',
+    setLengthMin: booking.setLengthMin ? String(booking.setLengthMin) : '',
     fee: booking.fee !== null ? String(booking.fee) : '',
     dealNotes: booking.dealNotes ?? '',
     internalNotes: booking.internalNotes ?? '',
@@ -102,7 +129,7 @@ interface Props {
 }
 
 /**
- * Full "day sheet" for a single show — load-in, set, doors, fee, venue
+ * Full "day sheet" for a single show — load-in, sound check, doors, set time, set length, fee, venue
  * contact, and any notes ops needs on show day. Presented as a native
  * modal so it works identically on iOS/Android/web without adding a
  * second navigator on top of the app's Stack layout. Also doubles as the
@@ -133,10 +160,13 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
     );
   }
 
+  const timeOk = (v: string) => v === '' || TIME_PATTERN.test(v);
   const timeFieldsValid =
-    (form.loadInTime === '' || TIME_PATTERN.test(form.loadInTime)) &&
-    (form.setTime === '' || TIME_PATTERN.test(form.setTime)) &&
-    (form.doorTime === '' || TIME_PATTERN.test(form.doorTime));
+    timeOk(form.loadInTime) &&
+    timeOk(form.soundcheckTime) &&
+    timeOk(form.doorTime) &&
+    timeOk(form.setTime) &&
+    setLengthValid(form.setLengthMin);
   const feeValid = form.fee === '' || !Number.isNaN(Number(form.fee));
   const canSave = timeFieldsValid && feeValid && !saving;
 
@@ -152,9 +182,11 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
 
     const patch: Partial<BookingEditableFields> = {
       status: form.status,
-      loadInTime: form.loadInTime === '' ? null : `${form.loadInTime}:00`,
-      setTime: form.setTime === '' ? null : `${form.setTime}:00`,
-      doorTime: form.doorTime === '' ? null : `${form.doorTime}:00`,
+      loadInTime: toDbTime(form.loadInTime),
+      soundcheckTime: toDbTime(form.soundcheckTime),
+      doorTime: toDbTime(form.doorTime),
+      setTime: toDbTime(form.setTime),
+      setLengthMin: form.setLengthMin === '' ? null : Number(form.setLengthMin),
       fee: form.fee === '' ? null : Number(form.fee),
       dealNotes: form.dealNotes === '' ? null : form.dealNotes,
       internalNotes: form.internalNotes === '' ? null : form.internalNotes,
@@ -210,13 +242,28 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
 
                 <Section title="Schedule">
                   <Row label="Load-in" value={formatTime(booking.loadInTime)} />
-                  <Row label="Sound check / set" value={formatTime(booking.setTime)} />
+                  <Row label="Sound check" value={formatTime(booking.soundcheckTime)} />
                   <Row label="Doors" value={formatTime(booking.doorTime)} />
-                  <Row
-                    label="Set length"
-                    value={booking.setLengthMin ? `${booking.setLengthMin} min` : null}
-                  />
+                  <Row label="Set time" value={formatTime(booking.setTime)} />
+                  <Row label="Set length" value={formatSetLength(booking.setLengthMin)} />
+                  {!booking.loadInTime &&
+                    !booking.soundcheckTime &&
+                    !booking.doorTime &&
+                    !booking.setTime &&
+                    !booking.setLengthMin && <Text style={styles.emptyText}>No times set yet.</Text>}
                 </Section>
+
+                {(booking.venueContactName ||
+                  booking.dayOfContactPhone ||
+                  booking.soundEngineerName ||
+                  booking.soundEngineerPhone) && (
+                  <Section title="Show day">
+                    <Row label="Day-of contact" value={booking.venueContactName} />
+                    <PhoneRow label="Contact phone" phone={booking.dayOfContactPhone} />
+                    <Row label="Sound engineer" value={booking.soundEngineerName} />
+                    <PhoneRow label="Engineer phone" phone={booking.soundEngineerPhone} />
+                  </Section>
+                )}
 
                 {/* The band's fee and deal notes are admin-only. */}
                 {canEdit && (
@@ -294,21 +341,36 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
                     value={form.loadInTime}
                     onChangeText={(v) => setForm({ ...form, loadInTime: v })}
                     placeholder="17:00"
-                    invalid={form.loadInTime !== '' && !TIME_PATTERN.test(form.loadInTime)}
+                    invalid={!timeOk(form.loadInTime)}
                   />
                   <EditRow
-                    label="Sound check / set"
-                    value={form.setTime}
-                    onChangeText={(v) => setForm({ ...form, setTime: v })}
-                    placeholder="20:00"
-                    invalid={form.setTime !== '' && !TIME_PATTERN.test(form.setTime)}
+                    label="Sound check"
+                    value={form.soundcheckTime}
+                    onChangeText={(v) => setForm({ ...form, soundcheckTime: v })}
+                    placeholder="18:00"
+                    invalid={!timeOk(form.soundcheckTime)}
                   />
                   <EditRow
                     label="Doors"
                     value={form.doorTime}
                     onChangeText={(v) => setForm({ ...form, doorTime: v })}
                     placeholder="19:00"
-                    invalid={form.doorTime !== '' && !TIME_PATTERN.test(form.doorTime)}
+                    invalid={!timeOk(form.doorTime)}
+                  />
+                  <EditRow
+                    label="Set time"
+                    value={form.setTime}
+                    onChangeText={(v) => setForm({ ...form, setTime: v })}
+                    placeholder="20:00"
+                    invalid={!timeOk(form.setTime)}
+                  />
+                  <EditRow
+                    label="Set length (minutes)"
+                    value={form.setLengthMin}
+                    onChangeText={(v) => setForm({ ...form, setLengthMin: v })}
+                    placeholder="90"
+                    keyboardType="number-pad"
+                    invalid={!setLengthValid(form.setLengthMin)}
                   />
                 </Section>
 
@@ -406,6 +468,21 @@ function Row({ label, value }: { label: string; value: string | null | undefined
   );
 }
 
+/** A phone number the user can tap to call. Hidden when empty. */
+function PhoneRow({ label, phone }: { label: string; phone: string | null }) {
+  if (!phone) return null;
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`Call ${label.toLowerCase()} ${phone}`}
+      onPress={() => void openSafely(telUrl(phone))}
+      style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={[styles.rowValue, styles.linkValue]}>{phone}</Text>
+    </Pressable>
+  );
+}
+
 function EditRow({
   label,
   value,
@@ -418,7 +495,7 @@ function EditRow({
   value: string;
   onChangeText: (v: string) => void;
   placeholder: string;
-  keyboardType?: 'default' | 'decimal-pad';
+  keyboardType?: 'default' | 'decimal-pad' | 'number-pad';
   invalid: boolean;
 }) {
   return (
@@ -486,6 +563,8 @@ const styles = StyleSheet.create({
   },
   rowLabel: { fontSize: 15, color: COLORS.textMuted },
   rowValue: { fontSize: 15, fontWeight: '500', flexShrink: 1, textAlign: 'right', color: COLORS.text },
+  linkValue: { color: COLORS.accent, textDecorationLine: 'underline' },
+  emptyText: { fontSize: 15, color: COLORS.textMuted, paddingVertical: 8 },
   noteText: { fontSize: 15, lineHeight: 21, marginBottom: 8, color: COLORS.text },
   editButton: {
     marginTop: 32,
