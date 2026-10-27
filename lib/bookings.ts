@@ -5,6 +5,7 @@ import type { BookingStatus } from './bookingStatus';
 /** Show-day fields every role may see. */
 const SHARED_COLUMNS = `id, show_date, load_in_time, soundcheck_time, set_time, door_time, end_time,
        set_length_min, status, sound_system, special_requirements, venue_contact_name,
+       day_of_contact_phone, sound_engineer_name, sound_engineer_phone,
        meals_provided, drinks_provided, hotel_booked, lodging_details,
        venue:venue_id ( id, name, city, state, address, capacity, booking_contact, phone )`;
 
@@ -35,7 +36,11 @@ export interface UpcomingBooking {
   loadInTime: string | null;
   soundcheckTime: string | null;
   endTime: string | null;
+  /** Day-of contact (who meets the band on the night). */
   venueContactName: string | null;
+  dayOfContactPhone: string | null;
+  soundEngineerName: string | null;
+  soundEngineerPhone: string | null;
   setTime: string | null;
   doorTime: string | null;
   setLengthMin: number | null;
@@ -62,6 +67,9 @@ export function mapBookingRow(row: any): UpcomingBooking {
     soundcheckTime: row.soundcheck_time,
     endTime: row.end_time,
     venueContactName: row.venue_contact_name,
+    dayOfContactPhone: row.day_of_contact_phone ?? null,
+    soundEngineerName: row.sound_engineer_name ?? null,
+    soundEngineerPhone: row.sound_engineer_phone ?? null,
     setTime: row.set_time,
     doorTime: row.door_time,
     setLengthMin: row.set_length_min,
@@ -171,8 +179,10 @@ export async function fetchMemberBookingDetails(ids: string[]): Promise<Map<stri
 export interface BookingEditableFields {
   status: BookingStatus;
   loadInTime: string | null;
-  setTime: string | null;
+  soundcheckTime: string | null;
   doorTime: string | null;
+  setTime: string | null;
+  setLengthMin: number | null;
   fee: number | null;
   dealNotes: string | null;
   internalNotes: string | null;
@@ -199,8 +209,12 @@ export async function updateBooking(
   const patch: Record<string, unknown> = {};
   if (fields.status !== undefined) patch.status = fields.status;
   if (fields.loadInTime !== undefined) patch.load_in_time = fields.loadInTime;
-  if (fields.setTime !== undefined) patch.set_time = fields.setTime;
+  // soundcheck_time (time) is the live column; the legacy text column
+  // sound_check_time is always empty and must not be written.
+  if (fields.soundcheckTime !== undefined) patch.soundcheck_time = fields.soundcheckTime;
   if (fields.doorTime !== undefined) patch.door_time = fields.doorTime;
+  if (fields.setTime !== undefined) patch.set_time = fields.setTime;
+  if (fields.setLengthMin !== undefined) patch.set_length_min = fields.setLengthMin;
   if (fields.fee !== undefined) patch.fee = fields.fee;
   if (fields.dealNotes !== undefined) patch.deal_notes = fields.dealNotes;
   if (fields.internalNotes !== undefined) patch.internal_notes = fields.internalNotes;
