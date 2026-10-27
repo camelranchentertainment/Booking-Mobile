@@ -1,9 +1,11 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountButton } from '../../components/AccountButton';
+import { AddShowModal } from '../../components/AddShowModal';
 import { DaySheetModal } from '../../components/DaySheetModal';
 import { RetroStripes, ScreenHeader, StateMessage } from '../../components/retro';
 import { ShowCard } from '../../components/ShowCard';
@@ -26,7 +28,7 @@ export default function ShowsScreen() {
   const router = useRouter();
   // 1 column on phones, 2 on iPad portrait / iPhone Duo unfolded, 3 on iPad landscape / Mac.
   const { columns } = useLayout();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const isMember = profile?.role === 'member';
   // UI gate only — RLS on `bookings` is the real write boundary (see lib/bookings.ts).
   const canEdit = profile?.role === 'band_admin' || profile?.role === 'superadmin';
@@ -39,6 +41,7 @@ export default function ShowsScreen() {
   // Saved edits from the admin day sheet, layered over the fetched rows until the next refresh.
   const [edits, setEdits] = useState<Record<string, UpcomingBooking>>({});
   const [selected, setSelected] = useState<UpcomingBooking | null>(null);
+  const [adding, setAdding] = useState(false);
   const items = data ? data.map((it) => ({ ...it, booking: edits[it.booking.id] ?? it.booking })) : null;
 
   // Keep the Apple Watch app's show list current whenever fresh shows load (no-op without a watch).
@@ -57,7 +60,22 @@ export default function ShowsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScreenHeader title={isMember ? 'My Shows' : 'Your Shows'} subtitle={subtitle} right={<AccountButton />} />
+      <ScreenHeader title={isMember ? 'My Shows' : 'Your Shows'} subtitle={subtitle} right={
+          <View style={styles.headerActions}>
+            {canEdit && profile?.act_id ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Add a show"
+                onPress={() => setAdding(true)}
+                hitSlop={8}
+                style={styles.addButton}>
+                <Ionicons name="add" size={26} color={colors.onInteractive} />
+              </Pressable>
+            ) : null}
+            <AccountButton />
+          </View>
+        }
+      />
       <RetroStripes height={4} gap={2} style={styles.stripes} />
 
       {loading && <StateMessage kind="loading" />}
@@ -79,7 +97,7 @@ export default function ShowsScreen() {
           message={
             isMember
               ? "You're not on any upcoming shows yet. When your band admin adds you to a show, it lands here."
-              : 'No upcoming shows yet. Once a show is booked on camelranchbooking.com it shows up here.'
+              : 'No upcoming shows yet. Tap + to add one, or book it on camelranchbooking.com.'
           }
           actionLabel="Refresh"
           onAction={refresh}
@@ -125,6 +143,20 @@ export default function ShowsScreen() {
         />
       )}
 
+      {canEdit && profile?.act_id && user ? (
+        <AddShowModal
+          visible={adding}
+          actId={profile.act_id}
+          userId={user.id}
+          onClose={() => setAdding(false)}
+          onCreated={(created) => {
+            setAdding(false);
+            void refresh();
+            setSelected(created);
+          }}
+        />
+      ) : null}
+
       {!isMember && (
         <DaySheetModal
           booking={selected}
@@ -150,6 +182,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   stripes: { marginBottom: space.lg },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   list: { paddingHorizontal: space.xl, paddingBottom: space['4xl'] },
   row: { gap: space.md },
   cell: { flex: 1 },
