@@ -25,12 +25,13 @@ interface Item {
 }
 
 const IN_APP: Item[] = [
+  { icon: 'map-outline', title: 'Tours', detail: 'How each tour is going: follow-ups, targets and what’s booked', to: { screen: '/more/tours' } },
   { icon: 'business-outline', title: 'Venues', detail: 'Search your venues, call or email the venue contact, keep notes', to: { screen: '/more/venues' } },
   { icon: 'cash-outline', title: 'Money', detail: "This year's earned, upcoming, expenses and who still owes you", to: { screen: '/more/money' } },
 ];
 
 const ON_WEBSITE: Item[] = [
-  { icon: 'map-outline', title: 'Tours', detail: 'Plan tours and target venues', to: { web: '/tours' } },
+  { icon: 'navigate-outline', title: 'Plan a tour', detail: 'Find venues, route the run and send pitches', to: { web: '/tours' } },
   { icon: 'mail-outline', title: 'Email', detail: 'Outreach, follow-ups and your inbox', to: { web: '/email' } },
   { icon: 'receipt-outline', title: 'Financials', detail: 'Add expenses, mark shows paid, export for taxes', to: { web: '/financials' } },
   { icon: 'people-outline', title: 'Members', detail: 'Add band and crew, set pay', to: { web: '/band/members' } },
