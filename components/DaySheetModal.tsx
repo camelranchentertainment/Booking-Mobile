@@ -1,9 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +8,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   BOOKING_STATUSES,
   bookingStatusColor,
@@ -22,6 +18,7 @@ import { updateBooking, type BookingEditableFields, type UpcomingBooking } from 
 import { openSafely, telUrl } from '../lib/links';
 import { colors, fonts } from '../lib/theme';
 import { READABLE_MAX_WIDTH } from '../lib/layout';
+import { ModalScreen } from './ModalScreen';
 
 // Mapped onto the shared theme so the modal matches the rest of the app.
 const COLORS = {
@@ -154,9 +151,9 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
 
   if (!booking || !form) {
     return (
-      <Modal visible={booking !== null} animationType="slide" onRequestClose={onClose}>
-        <SafeAreaView style={styles.flex} />
-      </Modal>
+      <ModalScreen visible={booking !== null} onClose={onClose}>
+        <View style={styles.flex} />
+      </ModalScreen>
     );
   }
 
@@ -204,23 +201,9 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
   };
 
   return (
-    <Modal visible animationType="slide" onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <SafeAreaView style={styles.flex}>
+    <ModalScreen visible onClose={handleClose}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <View style={styles.headerRow}>
-              <Text style={styles.venueName}>{booking.venue?.name ?? 'Venue TBD'}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                onPress={handleClose}
-                hitSlop={12}
-                style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>Close</Text>
-              </Pressable>
-            </View>
+            <Text style={styles.venueName}>{booking.venue?.name ?? 'Venue TBD'}</Text>
 
             <Text style={styles.date}>{formatDate(booking.showDate)}</Text>
 
@@ -443,9 +426,7 @@ export function DaySheetModal({ booking, canEdit, onClose, onUpdated }: Props) {
               </>
             )}
           </ScrollView>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+    </ModalScreen>
   );
 }
 
@@ -526,15 +507,7 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
     backgroundColor: COLORS.background,
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
   venueName: { fontFamily: fonts.groovy, fontSize: 26, lineHeight: 36, flex: 1, color: COLORS.text },
-  closeButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
-  closeButtonText: { color: COLORS.accent, fontSize: 16, fontFamily: fonts.bodySemibold },
   date: { fontFamily: fonts.label, fontSize: 20, letterSpacing: 0.5, color: COLORS.taglineBlue, marginTop: 4 },
   location: { fontSize: 15, color: COLORS.textMuted, marginTop: 2 },
   statusPill: {
