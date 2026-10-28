@@ -2,7 +2,8 @@
 // Band admins: the band's money for one calendar year — earned, upcoming,
 // expenses (incl. band pay) and net — plus played-but-unpaid shows and every
 // show's fee. Same rules as the website's Financials page (lib/adminMoney.ts).
-// Played-but-unpaid shows can be marked paid here; expenses are still entered on the website.
+// Played-but-unpaid shows can be marked paid here, and expenses can be added,
+// edited and archived (through the website's /api/expenses, lib/adminExpenses.ts).
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -10,9 +11,11 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '../../../components/BackButton';
+import { ExpenseModal } from '../../../components/ExpenseModal';
 import { MarkPaidModal } from '../../../components/MarkPaidModal';
 import { RetroStripes, ScreenHeader, StateMessage } from '../../../components/retro';
 import { useAsyncData } from '../../../hooks/useAsyncData';
+import { categoryLabel, fetchTourOptions, isEditableInApp, type Expense } from '../../../lib/adminExpenses';
 import { fetchYearMoney, type MoneyShow } from '../../../lib/adminMoney';
 import { formatCardDate } from '../../../lib/dates';
 import { READABLE_MAX_WIDTH } from '../../../lib/layout';
@@ -72,6 +75,41 @@ function ShowRow({ show, onPress, onMarkPaid }: { show: MoneyShow; onPress: () =
   );
 }
 
+function ExpenseRow({ expense, onPress }: { expense: Expense; onPress?: () => void }) {
+  const amount = Number(expense.amount) || 0;
+  const label = categoryLabel(expense.category);
+  const content = (
+    <>
+      <View style={styles.flex}>
+        <Text style={styles.rowDate}>{formatCardDate(expense.expense_date)}</Text>
+        <Text style={styles.rowVenue} numberOfLines={1}>{label}</Text>
+        {expense.notes ? <Text style={styles.rowMeta} numberOfLines={1}>{expense.notes}</Text> : null}
+      </View>
+      <View style={styles.rowRight}>
+        <Text style={styles.rowAmount}>{formatMoney(amount)}</Text>
+        <Text style={styles.rowState}>{onPress ? 'Edit' : 'On the website'}</Text>
+      </View>
+    </>
+  );
+  if (!onPress) {
+    return (
+      <View style={styles.row} accessible accessibilityLabel={`${formatCardDate(expense.expense_date)}, ${label}, ${formatMoney(amount)}. Band pay is edited on the show's lineup on the website.`}>
+        {content}
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${formatCardDate(expense.expense_date)}, ${label}, ${formatMoney(amount)}`}
+      accessibilityHint="Edit or archive this expense"
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+      {content}
+    </Pressable>
+  );
+}
+
 export default function MoneyScreen() {
   const router = useRouter();
   const thisYear = new Date().getFullYear();
@@ -85,6 +123,8 @@ export default function MoneyScreen() {
 
   const openShow = (s: MoneyShow) => router.push({ pathname: '/daysheet', params: { show: s.id } });
   const [paying, setPaying] = useState<MoneyShow | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | 'new' | null>(null);
+  const tours = useAsyncData('admin-tour-options', fetchTourOptions, "We couldn't load your tours.");
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -138,6 +178,27 @@ export default function MoneyScreen() {
               </>
             ) : null}
 
+            <View style={styles.sectionRow}>
+              <Text style={[styles.section, styles.sectionInRow]}>EXPENSES IN {year} ({data.expenseList.length})</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Add an expense"
+                onPress={() => setEditingExpense('new')}
+                style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
+                <Ionicons name="add" size={20} color={colors.onInteractive} />
+                <Text style={styles.addBtnText}>Add</Text>
+              </Pressable>
+            </View>
+            <View style={styles.list}>
+              {data.expenseList.length === 0 ? (
+                <Text style={styles.note}>No expenses in {year} yet. Tap Add to record gas, a hotel, food or gear.</Text>
+              ) : (
+                data.expenseList.map((e) => (
+                  <ExpenseRow key={e.id} expense={e} onPress={isEditableInApp(e) ? () => setEditingExpense(e) : undefined} />
+                ))
+              )}
+            </View>
+
             <Text style={styles.section}>SHOWS IN {year}</Text>
             <View style={styles.list}>
               {data.shows.length === 0 ? (
@@ -148,11 +209,20 @@ export default function MoneyScreen() {
             </View>
 
             <Text style={styles.footnote}>
-              Same numbers as Financials on camelranchbooking.com. Add expenses there.
+              Same numbers as Financials on camelranchbooking.com. Band pay is set on each show’s lineup there.
             </Text>
           </>
         ) : null}
       </ScrollView>
+      <ExpenseModal
+        expense={editingExpense}
+        tours={tours.data ?? []}
+        onClose={() => setEditingExpense(null)}
+        onSaved={() => {
+          setEditingExpense(null);
+          void refresh();
+        }}
+      />
       <MarkPaidModal
         show={paying}
         onClose={() => setPaying(null)}
@@ -190,6 +260,10 @@ const styles = StyleSheet.create({
   // Attention text on cards uses mustard (6.95:1); the danger red is only 4.11:1 on the card surface.
   owed: { color: colors.mustard, fontFamily: type.md.fontFamily },
   section: { ...type.label, color: colors.orange, paddingHorizontal: space.xl, marginTop: space['2xl'], marginBottom: space.sm },
+  sectionRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingRight: space.xl, marginTop: space['2xl'], marginBottom: space.sm },
+  sectionInRow: { marginTop: 0, marginBottom: 0, flexShrink: 1 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.pill, backgroundColor: colors.orange },
+  addBtnText: { ...type.md, color: colors.onInteractive },
   note: { ...type.sm, color: colors.textMuted, paddingHorizontal: space.xl, marginBottom: space.sm },
   list: { paddingHorizontal: space.xl, gap: space.md },
   row: {
