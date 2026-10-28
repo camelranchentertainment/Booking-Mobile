@@ -22,10 +22,37 @@ export const EXPANDED_MIN_WIDTH = 1100;
 
 export type SizeClass = 'compact' | 'medium' | 'expanded';
 
+/** How the main navigation is shown: bottom tabs on phones, a left sidebar on tablets and Mac. */
+export type NavStyle = 'tabs' | 'rail' | 'sidebar';
+
+/** Icon rail (icons with small labels) for medium windows: iPad portrait, split screen, unfolded Duo. */
+export const NAV_RAIL_WIDTH = 104;
+
+/** Full sidebar (logo, labels, account) for expanded windows: iPad landscape and Mac. */
+export const NAV_SIDEBAR_WIDTH = 248;
+
 export interface LayoutInfo {
   sizeClass: SizeClass;
   /** Columns for card grids. */
   columns: 1 | 2 | 3;
+}
+
+/**
+ * The navigation style for a window width, like the website: a sidebar on
+ * big screens, bottom tabs on phones.
+ *
+ * @param width window width in points
+ */
+export function navStyleFor(width: number): NavStyle {
+  if (!Number.isFinite(width) || width < MEDIUM_MIN_WIDTH) return 'tabs';
+  if (width < EXPANDED_MIN_WIDTH) return 'rail';
+  return 'sidebar';
+}
+
+/** Width the navigation takes from the left of the window (0 for bottom tabs). */
+export function navWidthFor(width: number): number {
+  const nav = navStyleFor(width);
+  return nav === 'sidebar' ? NAV_SIDEBAR_WIDTH : nav === 'rail' ? NAV_RAIL_WIDTH : 0;
 }
 
 /**
