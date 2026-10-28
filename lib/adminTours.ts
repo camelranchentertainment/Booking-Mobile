@@ -160,7 +160,7 @@ export async function setTargetStatus(targetId: string, status: TargetStatus): P
   });
   if (!res.ok) {
     const json = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(res.status === 403 ? 'Only the tour’s owner can change its targets.' : json.error || `Couldn't update the target (${res.status}).`);
+    throw new Error(res.status === 403 ? 'Only the band’s admins can change this tour’s targets.' : json.error || `Couldn't update the target (${res.status}).`);
   }
 }
 
