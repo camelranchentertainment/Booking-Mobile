@@ -12,27 +12,23 @@
 //   Net      = Earned − Expenses
 //
 // Bookings are read with the admin's own session; RLS limits them to the band.
+import { fetchYearExpenseList, type Expense } from './adminExpenses';
 import { toISODate } from './dates';
 import { API_BASE, authHeader } from './memberShows';
-import { summarizeYear, type BookingRow, type ExpenseRow, type YearMoney } from './moneySummary';
+import { summarizeYear, type BookingRow, type YearMoney } from './moneySummary';
 import { supabase } from './supabase';
 
 export type { MoneyShow, MoneyShowState, YearMoney } from './moneySummary';
 
-async function fetchYearExpenses(year: number): Promise<ExpenseRow[]> {
-  const qs = new URLSearchParams({ start_date: `${year}-01-01`, end_date: `${year}-12-31` });
-  const res = await fetch(`${API_BASE}/api/expenses?${qs.toString()}`, { headers: await authHeader() });
-  if (!res.ok) throw new Error(`Expenses request failed (${res.status})`);
-  const json = (await res.json()) as { expenses?: ExpenseRow[] };
-  return json.expenses ?? [];
-}
+/** The year's figures plus the expense rows behind them (newest first), for the expenses list. */
+export type YearMoneyDetail = YearMoney & { expenseList: Expense[] };
 
 /**
  * Loads and summarizes one year of the band's money.
  *
  * @throws Error when either request fails (the screen shows a retry)
  */
-export async function fetchYearMoney(year: number): Promise<YearMoney> {
+export async function fetchYearMoney(year: number): Promise<YearMoneyDetail> {
   const [bookingsRes, expenses] = await Promise.all([
     supabase
       .from('bookings')
@@ -41,10 +37,11 @@ export async function fetchYearMoney(year: number): Promise<YearMoney> {
       .lte('show_date', `${year}-12-31`)
       .in('status', ['confirmed', 'completed'])
       .order('show_date', { ascending: true }),
-    fetchYearExpenses(year),
+    fetchYearExpenseList(year),
   ]);
   if (bookingsRes.error) throw bookingsRes.error;
-  return summarizeYear(year, (bookingsRes.data ?? []) as unknown as BookingRow[], expenses, toISODate(new Date()));
+  const summary = summarizeYear(year, (bookingsRes.data ?? []) as unknown as BookingRow[], expenses, toISODate(new Date()));
+  return { ...summary, expenseList: expenses };
 }
 
 /**
