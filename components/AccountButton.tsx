@@ -2,11 +2,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 
+import { useLayout } from '../hooks/useLayout';
 import { colors, touchTarget } from '../lib/theme';
 
-/** Header button that opens the Band & account screen (roster, sign out). */
+/**
+ * Header button that opens the Band & account screen (roster, sign out).
+ * Phones only: on tablets the sidebar has its own account row at the bottom.
+ */
 export function AccountButton() {
   const router = useRouter();
+  const { nav } = useLayout();
+  if (nav !== 'tabs') return null;
   return (
     <Pressable
       accessibilityRole="button"
