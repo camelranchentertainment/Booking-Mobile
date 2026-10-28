@@ -3,9 +3,6 @@
 // times and the deal. Validates on blur, keeps everything typed on failure.
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +11,6 @@ import {
   View,
   type KeyboardTypeOptions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useAsyncData } from '../hooks/useAsyncData';
@@ -33,6 +29,7 @@ import {
 } from '../lib/newShow';
 import { colors, radius, space, touchTarget, type } from '../lib/theme';
 import { fetchVenues, filterVenues, placeLabel, type VenueSummary } from '../lib/venues';
+import { ModalScreen } from './ModalScreen';
 import { RetroButton } from './retro';
 
 interface Props {
@@ -118,16 +115,9 @@ export function AddShowModal({ visible, actId, userId, onClose, onCreated }: Pro
   const list = filterVenues(venues.data ?? [], query).slice(0, 8);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={close}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <SafeAreaView style={styles.flex}>
+    <ModalScreen visible={visible} onClose={close}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <View style={styles.headerRow}>
-              <Text style={styles.title}>Add a show</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={close} hitSlop={12} style={styles.close}>
-                <Text style={styles.closeText}>Close</Text>
-              </Pressable>
-            </View>
+            <Text style={styles.title}>Add a show</Text>
 
             {/* ── Venue ─────────────────────────────── */}
             <Text style={styles.section}>VENUE</Text>
@@ -341,9 +331,7 @@ export function AddShowModal({ visible, actId, userId, onClose, onCreated }: Pro
               </View>
             </View>
           </ScrollView>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+    </ModalScreen>
   );
 }
 
@@ -391,10 +379,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
   grow: { flex: 1 },
   content: { width: '100%', maxWidth: READABLE_MAX_WIDTH, alignSelf: 'center', padding: space.xl, paddingBottom: space['4xl'] },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { ...type.title, color: colors.cream },
-  close: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
-  closeText: { ...type.md, color: colors.interactive },
   section: { ...type.label, color: colors.orange, marginTop: space['2xl'], marginBottom: space.sm },
   label: { ...type.xs, color: colors.textMuted, marginBottom: space.xs, textTransform: 'uppercase' },
   field: { marginBottom: space.md },
