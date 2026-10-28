@@ -3,11 +3,13 @@
 // Band admins add, edit and archive expenses from the app (More → Money).
 // Every write goes through the website's /api/expenses routes, the same ones
 // the Financials page uses, so the two always agree:
-//   GET    /api/expenses?start_date&end_date   the admin's own, not archived
+//   GET    /api/expenses?start_date&end_date   the band's, not archived
 //   POST   /api/expenses                       add (tour, date, category, amount required)
 //   PUT    /api/expenses/:id                   edit
 //   DELETE /api/expenses/:id                   ARCHIVE — financial records are never deleted
-// The server checks the caller owns the row; RLS on `expenses` is per user.
+// The server checks the caller is a band admin and the row is the band's
+// (any admin of the band may edit it); RLS on `expenses` is per user, so the
+// app never reads the table directly.
 import { API_BASE, authHeader } from './memberShows';
 import { supabase } from './supabase';
 

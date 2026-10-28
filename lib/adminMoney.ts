@@ -6,7 +6,7 @@
 //
 //   Earned   = actual_amount_received on completed shows marked "received"
 //   Upcoming = agreed_amount (else fee) on confirmed shows dated today or later
-//   Expenses = the admin's expenses dated in the year (incl. band pay), via the
+//   Expenses = the band's expenses dated in the year (incl. band pay), via the
 //              website's /api/expenses (expenses RLS is per user, so the app
 //              reads them through the same server route the website uses)
 //   Net      = Earned − Expenses
