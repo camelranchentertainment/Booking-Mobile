@@ -23,6 +23,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(app)" />
+      <Stack.Screen name="(agent)" />
     </Stack>
   );
 }

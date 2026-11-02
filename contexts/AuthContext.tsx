@@ -7,13 +7,15 @@ import React, {
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { deleteMyAccount, type DeleteAccountResult } from '../lib/account';
+import { couldBeAgent, fetchAgentWorkspace, type AgentWorkspace } from '../lib/agent';
 import { unregisterPushToken } from '../lib/push';
 import { supabase } from '../lib/supabase';
 import { clearWatchShows } from '../lib/watchSync';
 
 export interface Profile {
   id: string;
-  act_id: string;
+  /** Null for Booking Agent logins, which have no band. */
+  act_id: string | null;
   role: 'superadmin' | 'band_admin' | 'member';
   display_name: string | null;
 }
@@ -22,6 +24,8 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  /** Set when this login is a Booking Agent; the app then shows agent mode. */
+  agentWorkspace: AgentWorkspace | null;
   loading: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -36,6 +40,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [agentWorkspace, setAgentWorkspace] = useState<AgentWorkspace | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +65,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data as Profile;
   };
 
+  /** Looks up the agent workspace, leaving band accounts untouched (and unqueried). */
+  const loadAgentWorkspace = async (userId: string, p: Profile | null): Promise<AgentWorkspace | null> => {
+    if (!p || !couldBeAgent(p.role, p.act_id)) return null;
+    try {
+      return await fetchAgentWorkspace(userId);
+    } catch (err) {
+      console.error('[auth] agent workspace lookup failed', err);
+      setError("We couldn't load your agent workspace. Check your connection and try again.");
+      return null;
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -73,7 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(initialSession);
       if (initialSession?.user) {
         const p = await fetchProfile(initialSession.user.id);
-        if (isMounted) setProfile(p);
+        const agent = await loadAgentWorkspace(initialSession.user.id, p);
+        if (isMounted) {
+          setProfile(p);
+          setAgentWorkspace(agent);
+        }
       }
       if (isMounted) setLoading(false);
     });
@@ -86,9 +107,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       if (newSession?.user) {
         const p = await fetchProfile(newSession.user.id);
-        if (isMounted) setProfile(p);
+        const agent = await loadAgentWorkspace(newSession.user.id, p);
+        if (isMounted) {
+          setProfile(p);
+          setAgentWorkspace(agent);
+        }
       } else {
         setProfile(null);
+        setAgentWorkspace(null);
       }
     });
 
@@ -119,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+    setAgentWorkspace(null);
   };
 
   const deleteAccount = async (): Promise<DeleteAccountResult> => {
@@ -136,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setSession(null);
     setProfile(null);
+    setAgentWorkspace(null);
     return result;
   };
 
@@ -151,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         user: session?.user ?? null,
         profile,
+        agentWorkspace,
         loading,
         error,
         signIn,
