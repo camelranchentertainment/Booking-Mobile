@@ -2,7 +2,7 @@
   "expo": {
     "name": "Camel Ranch",
     "slug": "Booking-Mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "camelranch",
