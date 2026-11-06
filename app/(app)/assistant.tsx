@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountButton } from '../../components/AccountButton';
+import { AgentMessageBody } from '../../components/assistant/AgentMessageBody';
 import { ApprovalCard } from '../../components/assistant/ApprovalCard';
 import { OutreachCard } from '../../components/assistant/OutreachCard';
 import { RetroStripes, ScreenHeader, StateMessage } from '../../components/retro';
@@ -36,6 +37,7 @@ import {
   type ChatMessage,
   type OutreachVenue,
 } from '../../lib/assistant';
+import { blocksText, parseAgentMarkdown } from '../../lib/agentMarkdown';
 import { fetchActName } from '../../lib/band';
 import { READABLE_MAX_WIDTH } from '../../lib/layout';
 import { colors, radius, space, touchTarget, type } from '../../lib/theme';
@@ -236,10 +238,16 @@ export default function AssistantScreen() {
               <View
                 key={`${i}-${m.role}`}
                 style={[styles.bubble, m.role === 'user' ? styles.userBubble : styles.botBubble]}
-                accessibilityLabel={`${m.role === 'user' ? 'You' : 'Assistant'}: ${m.content}`}>
-                <Text selectable style={m.role === 'user' ? styles.userText : styles.botText}>
-                  {m.content}
-                </Text>
+                accessibilityLabel={
+                  m.role === 'user' ? `You: ${m.content}` : `Assistant: ${blocksText(parseAgentMarkdown(m.content))}`
+                }>
+                {m.role === 'user' ? (
+                  <Text selectable style={styles.userText}>
+                    {m.content}
+                  </Text>
+                ) : (
+                  <AgentMessageBody content={m.content} />
+                )}
               </View>
             ))}
 
