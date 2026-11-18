@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountButton } from '../../components/AccountButton';
 import { DaySheetModal } from '../../components/DaySheetModal';
+import { SetListSection } from '../../components/SetListSection';
 import { GroovyText, RetroButton, RetroStripes, RsvpPill, ScreenHeader, StateMessage } from '../../components/retro';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAsyncData } from '../../hooks/useAsyncData';
@@ -69,6 +70,12 @@ export default function DaySheetScreen() {
   const [rsvpError, setRsvpError] = useState<string | null>(null);
   const [rawIndex, setIndex] = useState(0);
   const [editing, setEditing] = useState<UpcomingBooking | null>(null);
+  // Pull-to-refresh reloads the set list as well as the shows.
+  const [setListToken, setSetListToken] = useState(0);
+  const refreshAll = () => {
+    setSetListToken((n) => n + 1);
+    return refresh();
+  };
   const items = data ? data.map((it) => ({ ...it, booking: edits[it.booking.id] ?? it.booking })) : null;
   const shows = items ? items.map((it) => it.booking) : null;
 
@@ -148,7 +155,7 @@ export default function DaySheetScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={refresh}
+            onRefresh={refreshAll}
             tintColor={colors.orange}
             colors={[colors.orange]}
           />
@@ -261,6 +268,14 @@ export default function DaySheetScreen() {
             ))}
           </View>
         )}
+
+        <Text style={styles.sectionTitle}>SET LIST</Text>
+        <SetListSection
+          bookingId={show.id}
+          setLengthMin={show.setLengthMin ?? null}
+          isAdmin={canEdit}
+          refreshToken={setListToken}
+        />
 
         {(contactName || phone || address) && (
           <>
