@@ -42,14 +42,16 @@ const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFi
 
 /**
  * Reads one snapshot item defensively. The snapshot is JSON written by the
- * database, but a malformed row should drop out rather than crash the day sheet.
+ * database, but a row that isn't a song, break or note drops out rather than
+ * crashing the day sheet.
  */
 function parseItem(raw: unknown): PushedSetItem | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   const type = r.type === 'song' || r.type === 'break' || r.type === 'note' ? r.type : null;
-  const title = str(r.title);
-  if (!type || !title) return null;
+  if (!type) return null;
+  // Same fallbacks as the website's member page, so both show the same rows.
+  const title = str(r.title) ?? (type === 'break' ? 'Break' : type === 'note' ? 'Note' : 'Untitled song');
   return {
     position: num(r.position) ?? 0,
     type,
