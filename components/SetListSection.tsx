@@ -83,7 +83,7 @@ export function SetListSection({ bookingId, setLengthMin, isAdmin, refreshToken 
     return (
       <Text style={styles.muted}>
         {isAdmin
-          ? 'No set list pushed for this show yet. Build one in Set Lists on the website, then push it to the band.'
+          ? 'No set list pushed for this show yet. Build one under More → Set Lists, then push it to the band.'
           : 'No set list yet. When your band admin pushes one, it shows up here.'}
       </Text>
     );

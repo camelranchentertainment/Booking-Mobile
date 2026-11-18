@@ -29,6 +29,7 @@ const IN_APP: Item[] = [
   { icon: 'business-outline', title: 'Venues', detail: 'Search your venues, call or email the venue contact, keep notes', to: { screen: '/more/venues' } },
   { icon: 'cash-outline', title: 'Money', detail: "This year's earned, upcoming, expenses and who still owes you", to: { screen: '/more/money' } },
   { icon: 'people-outline', title: 'Roster', detail: 'Band and crew: add people, roles, phone numbers and usual pay', to: { screen: '/more/roster' } },
+  { icon: 'list-outline', title: 'Set Lists', detail: "Build a show's set and push it to everyone's phone", to: { screen: '/more/setlists' } },
 ];
 
 const ON_WEBSITE: Item[] = [
